@@ -1,20 +1,4 @@
 #!/bin/sh
-# Cero3 Shaper
-# A 3 bin tc_codel and ipv6 enabled shaping script for
-# ethernet gateways
-
-# Copyright (C) 2012 Michael D Taht
-# GPLv2
-
-# Compared to the complexity that debloat had become
-# this cleanly shows a means of going from diffserv marking
-# to prioritization using the current tools (ip(6)tables
-# and tc. I note that the complexity of debloat exists for
-# a reason, and it is expected that script is run first
-# to setup various other parameters such as BQL and ethtool.
-# (And that the debloat script has setup the other interfaces)
-
-# You need to jiggle these parameters. Note limits are tuned towards a <10Mbit uplink <60Mbup down
 
 insmod() {
   lsmod | grep -q ^$1 || /sbin/insmod $1
@@ -35,16 +19,14 @@ do_modules() {
     insmod sch_ingress
     insmod act_mirred
     insmod cls_fw
-    insmod sch_htb
+    insmod sch_hfsc
 }
 
-# You need to jiggle these parameters. Note limits are tuned towards a <10Mbit uplink <60Mbup down
-
-[ -z "$UPLINK" ] && UPLINK=4000
-[ -z "$DOWNLINK" ] && DOWNLINK=20000
+[ -z "$UPLINK" ] && UPLINK=210
+[ -z "$DOWNLINK" ] && DOWNLINK=1600
 [ -z "$DEV" ] && DEV=ifb0
 [ -z "$QDISC" ] && QDISC=fq_codel
-[ -z "$IFACE" ] && IFACE=ge00
+[ -z "$IFACE" ] && IFACE=pppoe-wan
 [ -z "$ADSL" ] && ADSL=0
 [ -z "$AUTOFLOW" ] && AUTOFLOW=0
 [ -z "$AUTOECN" ] && AUTOECN=1
@@ -153,17 +135,32 @@ prio=1
 # Catchall
 
 tc filter add dev $interface parent 1:0 protocol all prio 999 u32 \
-        match ip protocol 0 0x00 flowid 1:12
+        match ip protocol 0 0x00 flowid 1:13
 
 # Find the most common matches fast
 
-fc 1:0 0x00 1:12 # BE
+fc 1:0 0x00 1:13 # DF/CS0
 fc 1:0 0x20 1:13 # CS1
+fc 1:0 0x28 1:13 # AF11
+fc 1:0 0x30 1:13 # AF12
+fc 1:0 0x38 1:13 # AF13
+fc 1:0 0x40 1:12 # CS2
+fc 1:0 0x48 1:12 # AF21
+fc 1:0 0x50 1:12 # AF22
+fc 1:0 0x58 1:12 # AF23
+fc 1:0 0x60 1:12 # CS3
+fc 1:0 0x68 1:12 # AF31
+fc 1:0 0x70 1:12 # AF32
+fc 1:0 0x78 1:12 # AF33
+fc 1:0 0x80 1:11 # CS4
+fc 1:0 0x88 1:11 # AF41
+fc 1:0 0x90 1:11 # AF42
+fc 1:0 0x98 1:11 # AF43
 fc 1:0 0x10 1:11 # IMM
 fc 1:0 0xb8 1:11 # EF
-fc 1:0 0xc0 1:11 # CS3
-fc 1:0 0xe0 1:11 # CS6
-fc 1:0 0x90 1:11 # AF42 (mosh)
+fc 1:0 0xa0 1:11 # CS5
+fc 1:0 0xc0 1:11 # CS6
+fc 1:0 0xe0 1:11 # CS7
 
 # Arp traffic
 tc filter add dev $interface parent 1:0 protocol arp prio $prio handle 1 fw classid 1:11
@@ -175,34 +172,15 @@ ipt_setup() {
 
 ipt -t mangle -N QOS_MARK_${IFACE}
 
-ipt -t mangle -A QOS_MARK_${IFACE} -j MARK --set-mark 0x2
-# You can go further with classification but...
-ipt -t mangle -A QOS_MARK_${IFACE} -m dscp --dscp-class CS1 -j MARK --set-mark 0x3
-ipt -t mangle -A QOS_MARK_${IFACE} -m dscp --dscp-class CS6 -j MARK --set-mark 0x1
-ipt -t mangle -A QOS_MARK_${IFACE} -m dscp --dscp-class EF -j MARK --set-mark 0x1
-ipt -t mangle -A QOS_MARK_${IFACE} -m dscp --dscp-class AF42 -j MARK --set-mark 0x1
-ipt -t mangle -A QOS_MARK_${IFACE} -m tos  --tos Minimize-Delay -j MARK --set-mark 0x1
-
-# and it might be a good idea to do it for udp tunnels too
-
-# Turn it on. Preserve classification if already performed
+ipt -t mangle -A QOS_MARK_${IFACE} -j DSCP --set-dscp-class CS0
+ipt -t mangle -A QOS_MARK_${IFACE} -p icmp -j DSCP --set-dscp-class CS6
+ipt -t mangle -A QOS_MARK_${IFACE} -s 192.168.10.50/32 --set-dscp-class EF
+ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class CS3
+ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class CS3
+ipt -t mangle -A QOS_MARK_${IFACE} -m length --length 0:120 -m dscp --dscp-class CS3 -j DSCP --set-dscp-class CS4
 
 ipt -t mangle -A POSTROUTING -o $DEV -m mark --mark 0x00 -g QOS_MARK_${IFACE}
 ipt -t mangle -A POSTROUTING -o $IFACE -m mark --mark 0x00 -g QOS_MARK_${IFACE}
-
-# The Syn optimization was nice but fq_codel does it for us
-# ipt -t mangle -A PREROUTING -i s+ -p tcp -m tcp --tcp-flags SYN,RST,ACK SYN -j MARK --set-mark 0x01
-# Not sure if this will work. Encapsulation is a problem period
-
-ipt -t mangle -A PREROUTING -i vtun+ -p tcp -j MARK --set-mark 0x2 # tcp tunnels need ordering
-
-# Emanating from router, do a little more optimization
-# but don't bother with it too much.
-
-ipt -t mangle -A OUTPUT -p udp -m multiport --ports 123,53 -j DSCP --set-dscp-class AF42
-
-#Not clear if the second line is needed
-#ipt -t mangle -A OUTPUT -o $IFACE -g QOS_MARK_${IFACE}
 
 }
 
@@ -212,20 +190,19 @@ ipt -t mangle -A OUTPUT -p udp -m multiport --ports 123,53 -j DSCP --set-dscp-cl
 egress() {
 
 CEIL=${UPLINK}
-PRIO_RATE=`expr $CEIL / 3` # Ceiling for prioirty
-BE_RATE=`expr $CEIL / 6`   # Min for best effort
-BK_RATE=`expr $CEIL / 6`   # Min for background
-BE_CEIL=`expr $CEIL - 64`  # A little slop at the top
+EXPRESS=`expr $CEIL * 0.45`
+PRIORITY=`expr $CEIL * 0.35`
+BULK=`expr $CEIL * 0.05`
 
 LQ="quantum `get_mtu $IFACE`"
 
 tc qdisc del dev $IFACE root 2> /dev/null
-tc qdisc add dev $IFACE root handle 1: htb default 12
-tc class add dev $IFACE parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit ceil ${CEIL}kbit $ADSLL
-tc class add dev $IFACE parent 1:1 classid 1:10 htb $LQ rate ${CEIL}kbit ceil ${CEIL}kbit prio 0 $ADSLL
-tc class add dev $IFACE parent 1:1 classid 1:11 htb $LQ rate 128kbit ceil ${PRIO_RATE}kbit prio 1 $ADSLL
-tc class add dev $IFACE parent 1:1 classid 1:12 htb $LQ rate ${BE_RATE}kbit ceil ${BE_CEIL}kbit prio 2 $ADSLL
-tc class add dev $IFACE parent 1:1 classid 1:13 htb $LQ rate ${BK_RATE}kbit ceil ${BE_CEIL}kbit prio 3 $ADSLL
+tc qdisc add dev $IFACE root handle 1: hsfc default 13
+tc class add dev $IFACE parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
+
+tc class add dev $IFACE parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit ul rate ${CEIL}kbit
+tc class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit ul rate ${CEIL}kbit
+tc class add dev $IFACE parent 1:1 classid 1:13 hfsc sc rate ${BULK}kbit ul rate ${CEIL}kbit
 
 tc qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 600 $NOECN `get_quantum 300` `get_flows ${PRIO_RATE}`
 tc qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 600 $NOECN `get_quantum 300` `get_flows ${BE_RATE}`
@@ -234,7 +211,7 @@ tc qdisc add dev $IFACE parent 1:13 handle 130: $QDISC limit 600 $NOECN `get_qua
 # Need a catchall rule
 
 tc filter add dev $IFACE parent 1:0 protocol all prio 999 u32 \
-        match ip protocol 0 0x00 flowid 1:12
+        match ip protocol 0 0x00 flowid 1:13
 
 # FIXME should probably change the filter here to do pre-nat
 
@@ -257,10 +234,9 @@ tc filter add dev $IFACE parent 1:0 protocol arp prio 7 handle 1 fw classid 1:11
 ingress() {
 
 CEIL=$DOWNLINK
-PRIO_RATE=`expr $CEIL / 3` # Ceiling for prioirty
-BE_RATE=`expr $CEIL / 6`   # Min for best effort
-BK_RATE=`expr $CEIL / 6`   # Min for background
-BE_CEIL=`expr $CEIL - 64`  # A little slop at the top
+EXPRESS=`expr $CEIL * 0.45`
+PRIORITY=`expr $CEIL * 0.35`
+BULK=`expr $CEIL * 0.05`
 
 LQ="quantum `get_mtu $IFACE`"
 
@@ -268,14 +244,12 @@ tc qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
 tc qdisc add dev $IFACE handle ffff: ingress
 
 tc qdisc del dev $DEV root  2> /dev/null
-tc qdisc add dev $DEV root handle 1: htb default 12
-tc class add dev $DEV parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit ceil ${CEIL}kbit
-tc class add dev $DEV parent 1:1 classid 1:10 htb $LQ rate ${CEIL}kbit ceil ${CEIL}kbit prio 0
-tc class add dev $DEV parent 1:1 classid 1:11 htb $LQ rate 32kbit ceil ${PRIO_RATE}kbit prio 1
-tc class add dev $DEV parent 1:1 classid 1:12 htb $LQ rate ${BE_RATE}kbit ceil ${BE_CEIL}kbit prio 2
-tc class add dev $DEV parent 1:1 classid 1:13 htb $LQ rate ${BK_RATE}kbit ceil ${BE_CEIL}kbit prio 3
+tc qdisc add dev $DEV root handle 1: hsfc default 13
+tc class add dev $DEV parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
 
-# I'd prefer to use a pre-nat filter but that causes permutation...
+tc class add dev $DEV parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit ul rate ${CEIL}kbit
+tc class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit ul rate ${CEIL}kbit
+tc class add dev $DEV parent 1:1 classid 1:13 hfsc sc rate ${BULK}kbit ul rate ${CEIL}kbit
 
 tc qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 1000 $ECN `get_quantum 500` `get_flows ${PRIO_RATE}`
 tc qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 1000 $ECN `get_quantum 1500` `get_flows ${BE_RATE}`
@@ -296,17 +270,3 @@ do_modules
 ipt_setup
 egress
 ingress
-
-# References:
-# This alternate shaper attempts to go for 1/u performance in a clever way
-# http://git.coverfire.com/?p=linux-qos-scripts.git;a=blob;f=src-3tos.sh;hb=HEAD
-
-# Comments
-# This does the right thing with ipv6 traffic.
-# It also tries to leverage diffserv to some sane extent. In particular,
-# the 'priority' queue is limited to 33% of the total, so EF, and IMM traffic
-# cannot starve other types. The rfc suggested 30%. 30% is probably
-# a lot in today's world.
-
-# Flaws
-# Many!
