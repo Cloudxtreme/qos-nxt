@@ -133,30 +133,30 @@ prio=1
 # Catchall
 
 tc filter add dev $interface parent 1:0 protocol all prio 999 u32 \
-        match ip protocol 0 0x00 flowid 1:13
+        match ip protocol 0 0x00 flowid 1:132
 
-fc 1:0 0x00 1:13 # DF/CS0
-fc 1:0 0x30 1:13 # AF12
-fc 1:0 0xb8 1:11 # EF
-fc 1:0 0x90 1:11 # AF42
-fc 1:0 0x10 1:11 # IMM
-fc 1:0 0x50 1:12 # AF22
-fc 1:0 0x70 1:12 # AF32
-fc 1:0 0x20 1:13 # CS1
-fc 1:0 0x40 1:12 # CS2
-fc 1:0 0x60 1:12 # CS3
-fc 1:0 0x80 1:11 # CS4
-fc 1:0 0xa0 1:11 # CS5
-fc 1:0 0xc0 1:11 # CS6
-fc 1:0 0xe0 1:11 # CS7
-fc 1:0 0x28 1:13 # AF11
-fc 1:0 0x38 1:13 # AF13
-fc 1:0 0x48 1:12 # AF21
-fc 1:0 0x58 1:12 # AF23
-fc 1:0 0x68 1:12 # AF31
-fc 1:0 0x78 1:12 # AF33
-fc 1:0 0x88 1:11 # AF41
-fc 1:0 0x98 1:11 # AF43
+fc 1:0 0x00 1:132 # DF/CS0
+fc 1:0 0x30 1:132 # AF12
+fc 1:0 0xb8 1:111 # EF
+fc 1:0 0x90 1:112 # AF42
+fc 1:0 0x10 1:111 # IMM
+fc 1:0 0x50 1:122 # AF22
+fc 1:0 0x70 1:122 # AF32
+fc 1:0 0x20 1:132 # CS1
+fc 1:0 0x40 1:122 # CS2
+fc 1:0 0x60 1:121 # CS3
+fc 1:0 0x80 1:111 # CS4
+fc 1:0 0xa0 1:111 # CS5
+fc 1:0 0xc0 1:112 # CS6
+fc 1:0 0xe0 1:111 # CS7
+fc 1:0 0x28 1:131 # AF11
+fc 1:0 0x38 1:132 # AF13
+fc 1:0 0x48 1:121 # AF21
+fc 1:0 0x58 1:122 # AF23
+fc 1:0 0x68 1:121 # AF31
+fc 1:0 0x78 1:122 # AF33
+fc 1:0 0x88 1:111 # AF41
+fc 1:0 0x98 1:112 # AF43
 
 # Arp traffic
 tc filter add dev $interface parent 1:0 protocol arp prio $prio handle 1 fw classid 1:11
@@ -192,16 +192,22 @@ PRIORITY=`expr $CEIL \* 35 / 100`
 BULK=`expr $CEIL \* 5 / 100`
 
 tc qdisc del dev $IFACE root 2> /dev/null
-tc qdisc add dev $IFACE root handle 1: hfsc default 13
+tc qdisc add dev $IFACE root handle 1: hfsc default 132
 tc class add dev $IFACE parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
 
 tc class add dev $IFACE parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit ul rate ${CEIL}kbit
+tc class add dev $IFACE parent 1:11 classid 1:111 hfsc ls rate ${EXPRESS}kbit ul rate ${CEIL}kbit
+tc class add dev $IFACE parent 1:11 classid 1:112 hfsc ls rate ${EXPRESS}kbit ul rate ${CEIL}kbit
 tc class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit ul rate ${CEIL}kbit
+tc class add dev $IFACE parent 1:12 classid 1:121 hfsc ls rate ${PRIORITY}kbit ul rate ${CEIL}kbit
+tc class add dev $IFACE parent 1:12 classid 1:122 hfsc ls rate ${PRIORITY}kbit ul rate ${CEIL}kbit
 tc class add dev $IFACE parent 1:1 classid 1:13 hfsc sc rate ${BULK}kbit ul rate ${CEIL}kbit
+tc class add dev $IFACE parent 1:13 classid 1:131 hfsc ls rate ${BULK}kbit ul rate ${CEIL}kbit
+tc class add dev $IFACE parent 1:13 classid 1:132 hfsc ls rate ${BULK}kbit ul rate ${CEIL}kbit
 
-tc qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 20 $NOECN `get_quantum 240` `get_flows ${EXPRESS}`
-tc qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 20 $NOECN `get_quantum 480` `get_flows ${PRIORITY}`
-tc qdisc add dev $IFACE parent 1:13 handle 130: $QDISC limit 50 $NOECN `get_quantum 1480` `get_flows ${BULK}`
+tc qdisc add dev $IFACE parent 1:112 handle 1120: $QDISC limit 20 $NOECN `get_quantum 240` `get_flows ${EXPRESS}`
+tc qdisc add dev $IFACE parent 1:122 handle 1220: $QDISC limit 20 $NOECN `get_quantum 480` `get_flows ${PRIORITY}`
+tc qdisc add dev $IFACE parent 1:132 handle 1320: $QDISC limit 50 $NOECN `get_quantum 1480` `get_flows ${BULK}`
 
 diffserv $IFACE
 
@@ -210,24 +216,30 @@ diffserv $IFACE
 ingress() {
 
 CEIL=$DOWNLINK
-EXPRESS=`expr $CEIL \* 60 / 100`
-PRIORITY=`expr $CEIL \* 35 / 100`
-BULK=`expr $CEIL \* 5 / 100`
+EXPRESS=`expr $CEIL \* 25 / 100`
+PRIORITY=`expr $CEIL \* 25 / 100`
+BULK=`expr $CEIL \* 50 / 100`
 
 tc qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
 tc qdisc add dev $IFACE handle ffff: ingress
 
 tc qdisc del dev $DEV root  2> /dev/null
-tc qdisc add dev $DEV root handle 1: hfsc default 13
+tc qdisc add dev $DEV root handle 1: hfsc default 132
 tc class add dev $DEV parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
 
 tc class add dev $DEV parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit ul rate ${CEIL}kbit
+tc class add dev $DEV parent 1:11 classid 1:111 hfsc ls rate ${EXPRESS}kbit ul rate ${CEIL}kbit
+tc class add dev $DEV parent 1:11 classid 1:112 hfsc ls rate ${EXPRESS}kbit ul rate ${CEIL}kbit
 tc class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit ul rate ${CEIL}kbit
+tc class add dev $DEV parent 1:12 classid 1:121 hfsc ls rate ${PRIORITY}kbit ul rate ${CEIL}kbit
+tc class add dev $DEV parent 1:12 classid 1:122 hfsc ls rate ${PRIORITY}kbit ul rate ${CEIL}kbit
 tc class add dev $DEV parent 1:1 classid 1:13 hfsc sc rate ${BULK}kbit ul rate ${CEIL}kbit
+tc class add dev $DEV parent 1:13 classid 1:131 hfsc ls rate ${BULK}kbit ul rate ${CEIL}kbit
+tc class add dev $DEV parent 1:13 classid 1:132 hfsc ls rate ${BULK}kbit ul rate ${CEIL}kbit
 
-tc qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 25 $ECN `get_quantum 240` `get_flows ${EXPRESS}`
-tc qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 50 $ECN `get_quantum 1480` `get_flows ${PRIORITY}`
-tc qdisc add dev $DEV parent 1:13 handle 130: $QDISC limit 400 $ECN `get_quantum 1480` `get_flows ${BULK}`
+tc qdisc add dev $DEV parent 1:112 handle 1120: $QDISC limit 25 $ECN `get_quantum 240` `get_flows ${EXPRESS}`
+tc qdisc add dev $DEV parent 1:122 handle 1220: $QDISC limit 50 $ECN `get_quantum 1480` `get_flows ${PRIORITY}`
+tc qdisc add dev $DEV parent 1:132 handle 1320: $QDISC limit 400 $ECN `get_quantum 1480` `get_flows ${BULK}`
 
 diffserv $DEV
 
