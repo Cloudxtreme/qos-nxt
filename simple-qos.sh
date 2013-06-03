@@ -51,6 +51,9 @@ then
 fi
 
 aqm_stop() {
+    ipt -t mangle -D POSTROUTING -o $DEV -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
+    ipt -t mangle -D POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
+    ipt -X QOS_MARK_${IFACE}
     tc qdisc del dev $IFACE ingress
     tc qdisc del dev $IFACE root
     tc qdisc del dev $DEV root
@@ -167,10 +170,10 @@ ipt -t mangle -N QOS_MARK_${IFACE}
 
 ipt -t mangle -A QOS_MARK_${IFACE} -j DSCP --set-dscp-class AF12
 ipt -t mangle -A QOS_MARK_${IFACE} -p icmp -j DSCP --set-dscp-class CS6
-ipt -t mangle -A QOS_MARK_${IFACE} -s 192.168.10.50/32 --set-dscp-class EF
+ipt -t mangle -A QOS_MARK_${IFACE} -s 192.168.10.50/32 -j DSCP --set-dscp-class EF
 ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF22
 ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF22
-ipt -t mangle -A QOS_MARK_${IFACE} -m length --length 0:120 -m dscp --dscp-class AF22 -j DSCP --set-dscp-class AF42
+ipt -t mangle -A QOS_MARK_${IFACE} -m length --length 0:120 -m DSCP --dscp-class AF22 -j DSCP --set-dscp-class AF42
 
 ipt -t mangle -A POSTROUTING -o $DEV -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
 ipt -t mangle -A POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
@@ -235,6 +238,7 @@ $TC filter add dev $IFACE parent ffff: protocol all prio 10 u32 \
 }
 
 do_modules
+aqm_stop
 ipt_setup
 egress
 ingress
