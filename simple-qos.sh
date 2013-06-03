@@ -20,6 +20,14 @@ do_modules() {
     insmod act_mirred
     insmod cls_fw
     insmod sch_hfsc
+    insmod ipt_multiport
+    insmod ipt_dscp
+    insmod ipt_tos
+    insmod ipt_length
+    insmod ifb
+    insmod cls_u32
+    insmod em_u32
+    insmod sch_fq_codel
 }
 
 [ -z "$UPLINK" ] && UPLINK=210
