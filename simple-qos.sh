@@ -131,7 +131,6 @@ prio=1
 tc filter add dev $interface parent 1:0 protocol all prio 999 u32 \
         match ip protocol 0 0x00 flowid 1:13
 
-
 fc 1:0 0x00 1:13 # DF/CS0
 fc 1:0 0x30 1:13 # AF12
 fc 1:0 0xb8 1:11 # EF
@@ -158,6 +157,7 @@ fc 1:0 0x98 1:11 # AF43
 # Arp traffic
 tc filter add dev $interface parent 1:0 protocol arp prio $prio handle 1 fw classid 1:11
 prio=$(($prio + 1))
+
 }
 
 
@@ -187,8 +187,6 @@ EXPRESS=`expr $CEIL \* 45 / 100`
 PRIORITY=`expr $CEIL \* 35 / 100`
 BULK=`expr $CEIL \* 5 / 100`
 
-LQ="quantum `get_mtu $IFACE`"
-
 tc qdisc del dev $IFACE root 2> /dev/null
 tc qdisc add dev $IFACE root handle 1: hfsc default 13
 tc class add dev $IFACE parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
@@ -211,8 +209,6 @@ CEIL=$DOWNLINK
 EXPRESS=`expr $CEIL \* 45 / 100`
 PRIORITY=`expr $CEIL \* 35 / 100`
 BULK=`expr $CEIL \* 5 / 100`
-
-LQ="quantum `get_mtu $IFACE`"
 
 tc qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
 tc qdisc add dev $IFACE handle ffff: ingress
