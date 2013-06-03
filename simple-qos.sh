@@ -53,7 +53,8 @@ fi
 aqm_stop() {
     ipt -t mangle -D POSTROUTING -o $DEV -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
     ipt -t mangle -D POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
-    ipt -X QOS_MARK_${IFACE}
+    ipt -t mangle -F QOS_MARK_${IFACE}
+    ipt -t mangle -X QOS_MARK_${IFACE}
     tc qdisc del dev $IFACE ingress
     tc qdisc del dev $IFACE root
     tc qdisc del dev $DEV root
