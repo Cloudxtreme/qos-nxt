@@ -56,8 +56,6 @@ aqm_stop() {
     tc qdisc del dev $DEV root
 }
 
-# Note this has side effects on the prio variable
-# and depends on the interface global too
 
 fc() {
 tc filter add dev $interface protocol ip parent $1 prio $prio u32 match ip tos $2 0xfc classid $3
@@ -65,8 +63,6 @@ prio=$(($prio + 1))
 tc filter add dev $interface protocol ipv6 parent $1 prio $prio u32 match ip6 priority $2 0xfc classid $3
 prio=$(($prio + 1))
 }
-
-# FIXME: actually you need to get the underlying MTU on PPOE thing
 
 get_mtu() {
     F=`cat /sys/class/net/$1/mtu`
@@ -77,12 +73,6 @@ get_mtu() {
     echo $F
     fi
 }
-
-# FIXME should also calculate the limit
-# Frankly I think Xfq_codel can pretty much always run with high numbers of flows
-# now that it does fate sharing
-# But right now I'm trying to match the ns2 model behavior better
-# So SET the autoflow variable to 1 if you want the cablelabs behavior
 
 get_flows() {
     if [ "$AUTOFLOW" == 1 ]
@@ -102,8 +92,6 @@ get_flows() {
     esac
     fi
 }
-
-# set quantum parameter if available for this qdisc
 
 get_quantum() {
     case $QDISC in
@@ -133,8 +121,6 @@ qdisc_variants() {
 
 qdisc_variants
 
-# This could be a complete diffserv implementation
-
 diffserv() {
 
 interface=$1
@@ -147,18 +133,18 @@ tc filter add dev $interface parent 1:0 protocol all prio 999 u32 \
 
 
 fc 1:0 0x00 1:13 # DF/CS0
-fc 1:0 0x20 1:13 # CS1
 fc 1:0 0x30 1:13 # AF12
-fc 1:0 0x10 1:11 # IMM
 fc 1:0 0xb8 1:11 # EF
-fc 1:0 0x60 1:12 # CS3
-fc 1:0 0x70 1:12 # AF32
-fc 1:0 0xc0 1:11 # CS6
-fc 1:0 0x80 1:11 # CS4
 fc 1:0 0x90 1:11 # AF42
-fc 1:0 0x40 1:12 # CS2
+fc 1:0 0x10 1:11 # IMM
 fc 1:0 0x50 1:12 # AF22
+fc 1:0 0x70 1:12 # AF32
+fc 1:0 0x20 1:13 # CS1
+fc 1:0 0x40 1:12 # CS2
+fc 1:0 0x60 1:12 # CS3
+fc 1:0 0x80 1:11 # CS4
 fc 1:0 0xa0 1:11 # CS5
+fc 1:0 0xc0 1:11 # CS6
 fc 1:0 0xe0 1:11 # CS7
 fc 1:0 0x28 1:13 # AF11
 fc 1:0 0x38 1:13 # AF13
@@ -168,8 +154,6 @@ fc 1:0 0x68 1:12 # AF31
 fc 1:0 0x78 1:12 # AF33
 fc 1:0 0x88 1:11 # AF41
 fc 1:0 0x98 1:11 # AF43
-
-
 
 # Arp traffic
 tc filter add dev $interface parent 1:0 protocol arp prio $prio handle 1 fw classid 1:11
@@ -181,11 +165,12 @@ ipt_setup() {
 
 ipt -t mangle -N QOS_MARK_${IFACE}
 
+ipt -t mangle -A QOS_MARK_${IFACE} -j DSCP --set-dscp-class AF12
 ipt -t mangle -A QOS_MARK_${IFACE} -p icmp -j DSCP --set-dscp-class CS6
 ipt -t mangle -A QOS_MARK_${IFACE} -s 192.168.10.50/32 --set-dscp-class EF
-ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class CS3
-ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class CS3
-ipt -t mangle -A QOS_MARK_${IFACE} -m length --length 0:120 -m dscp --dscp-class CS3 -j DSCP --set-dscp-class CS4
+ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF22
+ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF22
+ipt -t mangle -A QOS_MARK_${IFACE} -m length --length 0:120 -m dscp --dscp-class AF22 -j DSCP --set-dscp-class AF42
 
 ipt -t mangle -A POSTROUTING -o $DEV -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
 ipt -t mangle -A POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
