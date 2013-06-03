@@ -137,30 +137,31 @@ prio=1
 tc filter add dev $interface parent 1:0 protocol all prio 999 u32 \
         match ip protocol 0 0x00 flowid 1:13
 
-# Find the most common matches fast
 
 fc 1:0 0x00 1:13 # DF/CS0
 fc 1:0 0x20 1:13 # CS1
-fc 1:0 0x28 1:13 # AF11
 fc 1:0 0x30 1:13 # AF12
-fc 1:0 0x38 1:13 # AF13
-fc 1:0 0x40 1:12 # CS2
-fc 1:0 0x48 1:12 # AF21
-fc 1:0 0x50 1:12 # AF22
-fc 1:0 0x58 1:12 # AF23
-fc 1:0 0x60 1:12 # CS3
-fc 1:0 0x68 1:12 # AF31
-fc 1:0 0x70 1:12 # AF32
-fc 1:0 0x78 1:12 # AF33
-fc 1:0 0x80 1:11 # CS4
-fc 1:0 0x88 1:11 # AF41
-fc 1:0 0x90 1:11 # AF42
-fc 1:0 0x98 1:11 # AF43
 fc 1:0 0x10 1:11 # IMM
 fc 1:0 0xb8 1:11 # EF
-fc 1:0 0xa0 1:11 # CS5
+fc 1:0 0x60 1:12 # CS3
+fc 1:0 0x70 1:12 # AF32
 fc 1:0 0xc0 1:11 # CS6
+fc 1:0 0x80 1:11 # CS4
+fc 1:0 0x90 1:11 # AF42
+fc 1:0 0x40 1:12 # CS2
+fc 1:0 0x50 1:12 # AF22
+fc 1:0 0xa0 1:11 # CS5
 fc 1:0 0xe0 1:11 # CS7
+fc 1:0 0x28 1:13 # AF11
+fc 1:0 0x38 1:13 # AF13
+fc 1:0 0x48 1:12 # AF21
+fc 1:0 0x58 1:12 # AF23
+fc 1:0 0x68 1:12 # AF31
+fc 1:0 0x78 1:12 # AF33
+fc 1:0 0x88 1:11 # AF41
+fc 1:0 0x98 1:11 # AF43
+
+
 
 # Arp traffic
 tc filter add dev $interface parent 1:0 protocol arp prio $prio handle 1 fw classid 1:11
@@ -172,15 +173,14 @@ ipt_setup() {
 
 ipt -t mangle -N QOS_MARK_${IFACE}
 
-ipt -t mangle -A QOS_MARK_${IFACE} -j DSCP --set-dscp-class CS0
 ipt -t mangle -A QOS_MARK_${IFACE} -p icmp -j DSCP --set-dscp-class CS6
 ipt -t mangle -A QOS_MARK_${IFACE} -s 192.168.10.50/32 --set-dscp-class EF
 ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class CS3
 ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class CS3
 ipt -t mangle -A QOS_MARK_${IFACE} -m length --length 0:120 -m dscp --dscp-class CS3 -j DSCP --set-dscp-class CS4
 
-ipt -t mangle -A POSTROUTING -o $DEV -m mark --mark 0x00 -g QOS_MARK_${IFACE}
-ipt -t mangle -A POSTROUTING -o $IFACE -m mark --mark 0x00 -g QOS_MARK_${IFACE}
+ipt -t mangle -A POSTROUTING -o $DEV -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
+ipt -t mangle -A POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
 
 }
 
@@ -190,14 +190,14 @@ ipt -t mangle -A POSTROUTING -o $IFACE -m mark --mark 0x00 -g QOS_MARK_${IFACE}
 egress() {
 
 CEIL=${UPLINK}
-EXPRESS=`expr $CEIL * 0.45`
-PRIORITY=`expr $CEIL * 0.35`
-BULK=`expr $CEIL * 0.05`
+EXPRESS=`expr $CEIL \* 45 / 100`
+PRIORITY=`expr $CEIL \* 35 / 100`
+BULK=`expr $CEIL \* 5 / 100`
 
 LQ="quantum `get_mtu $IFACE`"
 
 tc qdisc del dev $IFACE root 2> /dev/null
-tc qdisc add dev $IFACE root handle 1: hsfc default 13
+tc qdisc add dev $IFACE root handle 1: hfsc default 13
 tc class add dev $IFACE parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
 
 tc class add dev $IFACE parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit ul rate ${CEIL}kbit
@@ -208,35 +208,16 @@ tc qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 600 $NOECN `get_qua
 tc qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 600 $NOECN `get_quantum 300` `get_flows ${BE_RATE}`
 tc qdisc add dev $IFACE parent 1:13 handle 130: $QDISC limit 600 $NOECN `get_quantum 300` `get_flows ${BK_RATE}`
 
-# Need a catchall rule
-
-tc filter add dev $IFACE parent 1:0 protocol all prio 999 u32 \
-        match ip protocol 0 0x00 flowid 1:13
-
-# FIXME should probably change the filter here to do pre-nat
-
-tc filter add dev $IFACE parent 1:0 protocol ip prio 1 handle 1 fw classid 1:11
-tc filter add dev $IFACE parent 1:0 protocol ip prio 2 handle 2 fw classid 1:12
-tc filter add dev $IFACE parent 1:0 protocol ip prio 3 handle 3 fw classid 1:13
-
-# ipv6 support. Note that the handle indicates the fw mark bucket that is looked for
-
-tc filter add dev $IFACE parent 1:0 protocol ipv6 prio 4 handle 1 fw classid 1:11
-tc filter add dev $IFACE parent 1:0 protocol ipv6 prio 5 handle 2 fw classid 1:12
-tc filter add dev $IFACE parent 1:0 protocol ipv6 prio 6 handle 3 fw classid 1:13
-
-# Arp traffic
-
-tc filter add dev $IFACE parent 1:0 protocol arp prio 7 handle 1 fw classid 1:11
+diffserv $IFACE
 
 }
 
 ingress() {
 
 CEIL=$DOWNLINK
-EXPRESS=`expr $CEIL * 0.45`
-PRIORITY=`expr $CEIL * 0.35`
-BULK=`expr $CEIL * 0.05`
+EXPRESS=`expr $CEIL \* 45 / 100`
+PRIORITY=`expr $CEIL \* 35 / 100`
+BULK=`expr $CEIL \* 5 / 100`
 
 LQ="quantum `get_mtu $IFACE`"
 
@@ -244,7 +225,7 @@ tc qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
 tc qdisc add dev $IFACE handle ffff: ingress
 
 tc qdisc del dev $DEV root  2> /dev/null
-tc qdisc add dev $DEV root handle 1: hsfc default 13
+tc qdisc add dev $DEV root handle 1: hfsc default 13
 tc class add dev $DEV parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
 
 tc class add dev $DEV parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit ul rate ${CEIL}kbit
@@ -258,8 +239,6 @@ tc qdisc add dev $DEV parent 1:13 handle 130: $QDISC limit 1000 $ECN `get_quantu
 diffserv $DEV
 
 ifconfig $DEV up
-
-# redirect all IP packets arriving in $IFACE to ifb0
 
 $TC filter add dev $IFACE parent ffff: protocol all prio 10 u32 \
   match u32 0 0 flowid 1:1 action mirred egress redirect dev $DEV
