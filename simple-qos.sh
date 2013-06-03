@@ -183,7 +183,7 @@ ipt -t mangle -A POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IF
 egress() {
 
 CEIL=${UPLINK}
-EXPRESS=`expr $CEIL \* 45 / 100`
+EXPRESS=`expr $CEIL \* 60 / 100`
 PRIORITY=`expr $CEIL \* 35 / 100`
 BULK=`expr $CEIL \* 5 / 100`
 
@@ -195,9 +195,9 @@ tc class add dev $IFACE parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit ul r
 tc class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit ul rate ${CEIL}kbit
 tc class add dev $IFACE parent 1:1 classid 1:13 hfsc sc rate ${BULK}kbit ul rate ${CEIL}kbit
 
-tc qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 600 $NOECN `get_quantum 300` `get_flows ${PRIO_RATE}`
-tc qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 600 $NOECN `get_quantum 300` `get_flows ${BE_RATE}`
-tc qdisc add dev $IFACE parent 1:13 handle 130: $QDISC limit 600 $NOECN `get_quantum 300` `get_flows ${BK_RATE}`
+tc qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 20 $NOECN `get_quantum 240` `get_flows ${EXPRESS}`
+tc qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 20 $NOECN `get_quantum 480` `get_flows ${PRIORITY}`
+tc qdisc add dev $IFACE parent 1:13 handle 130: $QDISC limit 50 $NOECN `get_quantum 1480` `get_flows ${BULK}`
 
 diffserv $IFACE
 
@@ -206,7 +206,7 @@ diffserv $IFACE
 ingress() {
 
 CEIL=$DOWNLINK
-EXPRESS=`expr $CEIL \* 45 / 100`
+EXPRESS=`expr $CEIL \* 60 / 100`
 PRIORITY=`expr $CEIL \* 35 / 100`
 BULK=`expr $CEIL \* 5 / 100`
 
@@ -221,9 +221,9 @@ tc class add dev $DEV parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit ul rat
 tc class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit ul rate ${CEIL}kbit
 tc class add dev $DEV parent 1:1 classid 1:13 hfsc sc rate ${BULK}kbit ul rate ${CEIL}kbit
 
-tc qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 1000 $ECN `get_quantum 500` `get_flows ${PRIO_RATE}`
-tc qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 1000 $ECN `get_quantum 1500` `get_flows ${BE_RATE}`
-tc qdisc add dev $DEV parent 1:13 handle 130: $QDISC limit 1000 $ECN `get_quantum 1500` `get_flows ${BK_RATE}`
+tc qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 25 $ECN `get_quantum 240` `get_flows ${EXPRESS}`
+tc qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 50 $ECN `get_quantum 1480` `get_flows ${PRIORITY}`
+tc qdisc add dev $DEV parent 1:13 handle 130: $QDISC limit 400 $ECN `get_quantum 1480` `get_flows ${BULK}`
 
 diffserv $DEV
 
