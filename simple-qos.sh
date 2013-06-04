@@ -30,7 +30,7 @@ do_modules() {
     insmod sch_fq_codel
 }
 
-[ -z "$UPLINK" ] && UPLINK=210
+[ -z "$UPLINK" ] && UPLINK=220
 [ -z "$DOWNLINK" ] && DOWNLINK=1600
 [ -z "$DEV" ] && DEV=ifb0
 [ -z "$QDISC" ] && QDISC=fq_codel
@@ -170,11 +170,12 @@ ipt_setup() {
 ipt -t mangle -N QOS_MARK_${IFACE}
 
 ipt -t mangle -A QOS_MARK_${IFACE} -j DSCP --set-dscp-class AF12
+ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m length --length 120:480 -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF22
+ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m length --length 120:480 -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF22
+ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m length --length 0:120 -j DSCP --set-dscp-class AF42
+ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m length --length 0:120 -j DSCP --set-dscp-class AF42
 ipt -t mangle -A QOS_MARK_${IFACE} -p icmp -j DSCP --set-dscp-class CS6
 ipt -t mangle -A QOS_MARK_${IFACE} -s 192.168.10.50/32 -j DSCP --set-dscp-class EF
-ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF22
-ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF22
-ipt -t mangle -A QOS_MARK_${IFACE} -m length --length 0:120 -m DSCP --dscp-class AF22 -j DSCP --set-dscp-class AF42
 
 ipt -t mangle -A POSTROUTING -o $DEV -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
 ipt -t mangle -A POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
@@ -187,12 +188,12 @@ ipt -t mangle -A POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IF
 egress() {
 
 CEIL=${UPLINK}
-EXPRESS=`expr $CEIL \* 60 / 100`
-PRIORITY=`expr $CEIL \* 35 / 100`
-BULK=`expr $CEIL \* 5 / 100`
+EXPRESS=`expr $CEIL \* 40 / 100`
+PRIORITY=`expr $CEIL \* 40 / 100`
+BULK=`expr $CEIL \* 20 / 100`
 
 tc qdisc del dev $IFACE root 2> /dev/null
-tc qdisc add dev $IFACE root handle 1: hfsc default 132
+tc qdisc add dev $IFACE root handle 1: hfsc
 tc class add dev $IFACE parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
 
 tc class add dev $IFACE parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit ul rate ${CEIL}kbit
@@ -205,9 +206,9 @@ tc class add dev $IFACE parent 1:1 classid 1:13 hfsc sc rate ${BULK}kbit ul rate
 tc class add dev $IFACE parent 1:13 classid 1:131 hfsc ls rate ${BULK}kbit ul rate ${CEIL}kbit
 tc class add dev $IFACE parent 1:13 classid 1:132 hfsc ls rate ${BULK}kbit ul rate ${CEIL}kbit
 
-tc qdisc add dev $IFACE parent 1:112 handle 1120: $QDISC limit 20 $NOECN `get_quantum 240` `get_flows ${EXPRESS}`
-tc qdisc add dev $IFACE parent 1:122 handle 1220: $QDISC limit 20 $NOECN `get_quantum 480` `get_flows ${PRIORITY}`
-tc qdisc add dev $IFACE parent 1:132 handle 1320: $QDISC limit 50 $NOECN `get_quantum 1480` `get_flows ${BULK}`
+tc qdisc add dev $IFACE parent 1:112 handle 1120: $QDISC limit 100 $NOECN `get_quantum 120` `get_flows ${EXPRESS}`
+tc qdisc add dev $IFACE parent 1:122 handle 1220: $QDISC limit 100 $NOECN `get_quantum 480` `get_flows ${PRIORITY}`
+tc qdisc add dev $IFACE parent 1:132 handle 1320: $QDISC limit 100 $NOECN `get_quantum 1480` `get_flows ${BULK}`
 
 diffserv $IFACE
 
@@ -224,7 +225,7 @@ tc qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
 tc qdisc add dev $IFACE handle ffff: ingress
 
 tc qdisc del dev $DEV root  2> /dev/null
-tc qdisc add dev $DEV root handle 1: hfsc default 132
+tc qdisc add dev $DEV root handle 1: hfsc
 tc class add dev $DEV parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
 
 tc class add dev $DEV parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit ul rate ${CEIL}kbit
@@ -237,9 +238,9 @@ tc class add dev $DEV parent 1:1 classid 1:13 hfsc sc rate ${BULK}kbit ul rate $
 tc class add dev $DEV parent 1:13 classid 1:131 hfsc ls rate ${BULK}kbit ul rate ${CEIL}kbit
 tc class add dev $DEV parent 1:13 classid 1:132 hfsc ls rate ${BULK}kbit ul rate ${CEIL}kbit
 
-tc qdisc add dev $DEV parent 1:112 handle 1120: $QDISC limit 25 $ECN `get_quantum 240` `get_flows ${EXPRESS}`
-tc qdisc add dev $DEV parent 1:122 handle 1220: $QDISC limit 50 $ECN `get_quantum 1480` `get_flows ${PRIORITY}`
-tc qdisc add dev $DEV parent 1:132 handle 1320: $QDISC limit 400 $ECN `get_quantum 1480` `get_flows ${BULK}`
+tc qdisc add dev $DEV parent 1:112 handle 1120: $QDISC limit 1000 $ECN `get_quantum 120` `get_flows ${EXPRESS}`
+tc qdisc add dev $DEV parent 1:122 handle 1220: $QDISC limit 1000 $ECN `get_quantum 1480` `get_flows ${PRIORITY}`
+tc qdisc add dev $DEV parent 1:132 handle 1320: $QDISC limit 1000 $ECN `get_quantum 1480` `get_flows ${BULK}`
 
 diffserv $DEV
 
