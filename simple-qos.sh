@@ -169,8 +169,8 @@ ipt -t mangle -N QOS_MARK_${IFACE}
 ipt -t mangle -A QOS_MARK_${IFACE} -j DSCP --set-dscp-class AF12
 ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m length --length 120:480 -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF22
 ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m length --length 120:480 -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF22
-ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m length --length 0:120 -j DSCP --set-dscp-class AF42
-ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m length --length 0:120 -j DSCP --set-dscp-class AF42
+ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m length --length 0:120 -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF42
+ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m length --length 0:120 -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF42
 ipt -t mangle -A QOS_MARK_${IFACE} -p icmp -j DSCP --set-dscp-class CS6
 ipt -t mangle -A QOS_MARK_${IFACE} -s 192.168.10.50/32 -j DSCP --set-dscp-class EF
 
