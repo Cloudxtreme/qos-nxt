@@ -191,11 +191,11 @@ tc qdisc del dev $IFACE root 2> /dev/null
 tc qdisc add dev $IFACE root handle 1: hfsc
 tc class add dev $IFACE parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
 
-tc class add dev $IFACE parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit ul rate ${CEIL}kbit
-tc class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit ul rate ${CEIL}kbit
-tc class add dev $IFACE parent 1:1 classid 1:13 hfsc sc rate ${BULK}kbit ul rate ${CEIL}kbit
+tc class add dev $IFACE parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit
+tc class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit
+tc class add dev $IFACE parent 1:1 classid 1:13 hfsc ls rate ${BULK}kbit
 
-tc qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 100 $NOECN `get_quantum 120` `get_flows ${EXPRESS}`
+tc qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 100 $NOECN `get_quantum 480` `get_flows ${EXPRESS}`
 tc qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 100 $NOECN `get_quantum 480` `get_flows ${PRIORITY}`
 tc qdisc add dev $IFACE parent 1:13 handle 130: $QDISC limit 100 $NOECN `get_quantum 1480` `get_flows ${BULK}`
 
@@ -218,11 +218,11 @@ tc qdisc del dev $DEV root  2> /dev/null
 tc qdisc add dev $DEV root handle 1: hfsc
 tc class add dev $DEV parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
 
-tc class add dev $DEV parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit ul rate ${CEIL}kbit
-tc class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit ul rate ${CEIL}kbit
-tc class add dev $DEV parent 1:1 classid 1:13 hfsc sc rate ${BULK}kbit ul rate ${CEIL}kbit
+tc class add dev $DEV parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit
+tc class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit
+tc class add dev $DEV parent 1:1 classid 1:13 hfsc ls rate ${BULK}kbit
 
-tc qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 1000 $ECN `get_quantum 120` `get_flows ${EXPRESS}`
+tc qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 1000 $ECN `get_quantum 480` `get_flows ${EXPRESS}`
 tc qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 1000 $ECN `get_quantum 1480` `get_flows ${PRIORITY}`
 tc qdisc add dev $DEV parent 1:13 handle 130: $QDISC limit 1000 $ECN `get_quantum 1480` `get_flows ${BULK}`
 
