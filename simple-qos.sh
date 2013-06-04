@@ -133,11 +133,17 @@ diffserv() {
 interface=$1
 prio=1
 
+tc filter add dev $interface parent 1:0 protocol all prio 999 u32 \
+        match ip protocol 0 0x00 flowid 1:13
+
 fc 1:0 0x00 1:13 # DF/CS0
 fc 1:0 0x30 1:13 # AF12
+fc 1:0 0x02 1:13 # COS
 fc 1:0 0xb8 1:11 # EF
 fc 1:0 0x90 1:11 # AF42
 fc 1:0 0x10 1:11 # IMM
+fc 1:0 0x08 1:12 # THRO
+fc 1:0 0x04 1:12 # REL
 fc 1:0 0x50 1:12 # AF22
 fc 1:0 0x70 1:12 # AF32
 fc 1:0 0x20 1:13 # CS1
