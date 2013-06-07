@@ -190,16 +190,19 @@ egress() {
 
 CEIL=${UPLINK}
 EXPRESS=`expr $CEIL \* 40 / 100`
+MIN_EXPRESS=`expr $CEIL \* 35 / 100`
 PRIORITY=`expr $CEIL \* 40 / 100`
+MIN_PRIORITY=`expr $CEIL \* 35 / 100`
 BULK=`expr $CEIL \* 20 / 100`
+MIN_BULK=`expr $CEIL \* 10 / 100`
 
 tc qdisc del dev $IFACE root 2> /dev/null
 tc qdisc add dev $IFACE root handle 1: hfsc
 tc class add dev $IFACE parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
 
-tc class add dev $IFACE parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit
-tc class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit
-tc class add dev $IFACE parent 1:1 classid 1:13 hfsc ls rate ${BULK}kbit
+tc class add dev $IFACE parent 1:1 classid 1:11 hfsc rt rate ${MIN_EXPRESS}kbit ls rate ${EXPRESS}kbit
+tc class add dev $IFACE parent 1:1 classid 1:12 hfsc rt rate ${MIN_PRIORITY}kbit ls rate ${PRIORITY}kbit
+tc class add dev $IFACE parent 1:1 classid 1:13 hfsc rt rate ${MIN_BULK}kbit ls rate ${BULK}kbit
 
 tc qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 100 $NOECN `get_quantum 480` `get_flows ${EXPRESS}`
 tc qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 100 $NOECN `get_quantum 480` `get_flows ${PRIORITY}`
@@ -216,6 +219,7 @@ CEIL=$DOWNLINK
 EXPRESS=`expr $CEIL \* 25 / 100`
 PRIORITY=`expr $CEIL \* 25 / 100`
 BULK=`expr $CEIL \* 50 / 100`
+MIN_BULK=`expr $CEIL \* 30 / 100`
 
 tc qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
 tc qdisc add dev $IFACE handle ffff: ingress
@@ -226,7 +230,7 @@ tc class add dev $DEV parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${C
 
 tc class add dev $DEV parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit
 tc class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit
-tc class add dev $DEV parent 1:1 classid 1:13 hfsc ls rate ${BULK}kbit
+tc class add dev $DEV parent 1:1 classid 1:13 hfsc rt rate ${MIN_BULK}kbit ls rate ${BULK}kbit
 
 tc qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 1000 $ECN `get_quantum 480` `get_flows ${EXPRESS}`
 tc qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 1000 $ECN `get_quantum 1480` `get_flows ${PRIORITY}`
