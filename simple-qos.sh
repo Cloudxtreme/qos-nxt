@@ -136,9 +136,9 @@ prio=1
 tc filter add dev $interface parent 1:0 protocol all prio 999 u32 \
         match ip protocol 0 0x00 flowid 1:13
 
-fc 1:0 0x00 1:13 # DF/CS0
-fc 1:0 0x30 1:13 # AF12
-fc 1:0 0x02 1:13 # COS
+fc 1:0 0x00 1:12 # DF/CS0
+fc 1:0 0x30 1:12 # AF12
+fc 1:0 0x02 1:12 # COS
 fc 1:0 0xb8 1:11 # EF
 fc 1:0 0x90 1:11 # AF42
 fc 1:0 0x10 1:11 # IMM
@@ -146,15 +146,15 @@ fc 1:0 0x08 1:12 # THRO
 fc 1:0 0x04 1:12 # REL
 fc 1:0 0x50 1:12 # AF22
 fc 1:0 0x70 1:12 # AF32
-fc 1:0 0x20 1:13 # CS1
+fc 1:0 0x20 1:12 # CS1
 fc 1:0 0x40 1:12 # CS2
 fc 1:0 0x60 1:12 # CS3
 fc 1:0 0x80 1:11 # CS4
 fc 1:0 0xa0 1:11 # CS5
 fc 1:0 0xc0 1:11 # CS6
 fc 1:0 0xe0 1:11 # CS7
-fc 1:0 0x28 1:13 # AF11
-fc 1:0 0x38 1:13 # AF13
+fc 1:0 0x28 1:12 # AF11
+fc 1:0 0x38 1:12 # AF13
 fc 1:0 0x48 1:12 # AF21
 fc 1:0 0x58 1:12 # AF23
 fc 1:0 0x68 1:12 # AF31
@@ -173,10 +173,8 @@ ipt_setup() {
 ipt -t mangle -N QOS_MARK_${IFACE}
 
 ipt -t mangle -A QOS_MARK_${IFACE} -j DSCP --set-dscp-class AF12
-ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m length --length 120:480 -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF22
-ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m length --length 120:480 -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF22
-ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m length --length 0:120 -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF42
-ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m length --length 0:120 -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF42
+ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF42
+ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m multiport --ports 20,21,22,25,53,80,110,123,443,993,995 -j DSCP --set-dscp-class AF42
 ipt -t mangle -A QOS_MARK_${IFACE} -p icmp -j DSCP --set-dscp-class CS6
 ipt -t mangle -A QOS_MARK_${IFACE} -s 192.168.10.50/32 -j DSCP --set-dscp-class EF
 
@@ -189,24 +187,20 @@ ipt -t mangle -A POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IF
 egress() {
 
 CEIL=${UPLINK}
-EXPRESS=`expr $CEIL \* 40 / 100`
-MIN_EXPRESS=`expr $CEIL \* 35 / 100`
-PRIORITY=`expr $CEIL \* 40 / 100`
-MIN_PRIORITY=`expr $CEIL \* 35 / 100`
+EXPRESS=`expr $CEIL \* 80 / 100`
+MIN_EXPRESS=`expr $CEIL \* 40 / 100`
 BULK=`expr $CEIL \* 20 / 100`
-MIN_BULK=`expr $CEIL \* 10 / 100`
+
 
 tc qdisc del dev $IFACE root 2> /dev/null
 tc qdisc add dev $IFACE root handle 1: hfsc
 tc class add dev $IFACE parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
 
 tc class add dev $IFACE parent 1:1 classid 1:11 hfsc rt rate ${MIN_EXPRESS}kbit ls rate ${EXPRESS}kbit
-tc class add dev $IFACE parent 1:1 classid 1:12 hfsc rt rate ${MIN_PRIORITY}kbit ls rate ${PRIORITY}kbit
-tc class add dev $IFACE parent 1:1 classid 1:13 hfsc rt rate ${MIN_BULK}kbit ls rate ${BULK}kbit
+tc class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
 
-tc qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 100 $NOECN `get_quantum 480` `get_flows ${EXPRESS}`
-tc qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 100 $NOECN `get_quantum 480` `get_flows ${PRIORITY}`
-tc qdisc add dev $IFACE parent 1:13 handle 130: $QDISC limit 100 $NOECN `get_quantum 1480` `get_flows ${BULK}`
+tc qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 500 $NOECN `get_quantum 480` `get_flows ${EXPRESS}`
+tc qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 1000 $NOECN `get_quantum 1480` `get_flows ${BULK}`
 
 diffserv $IFACE
 
@@ -216,10 +210,9 @@ diffserv $IFACE
 ingress() {
 
 CEIL=$DOWNLINK
-EXPRESS=`expr $CEIL \* 25 / 100`
-PRIORITY=`expr $CEIL \* 25 / 100`
-BULK=`expr $CEIL \* 50 / 100`
-MIN_BULK=`expr $CEIL \* 30 / 100`
+EXPRESS=`expr $CEIL \* 80 / 100`
+MIN_EXPRESS=`expr $CEIL \* 40 / 100`
+BULK=`expr $CEIL \* 20 / 100`
 
 tc qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
 tc qdisc add dev $IFACE handle ffff: ingress
@@ -228,13 +221,12 @@ tc qdisc del dev $DEV root  2> /dev/null
 tc qdisc add dev $DEV root handle 1: hfsc
 tc class add dev $DEV parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit ul rate ${CEIL}kbit
 
-tc class add dev $DEV parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit
-tc class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${PRIORITY}kbit
-tc class add dev $DEV parent 1:1 classid 1:13 hfsc rt rate ${MIN_BULK}kbit ls rate ${BULK}kbit
+tc class add dev $DEV parent 1:1 classid 1:11 hfsc rt rate ${MIN_EXPRESS}kbit ls rate ${EXPRESS}kbit
+tc class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
 
-tc qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 1000 $ECN `get_quantum 480` `get_flows ${EXPRESS}`
-tc qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 1000 $ECN `get_quantum 1480` `get_flows ${PRIORITY}`
-tc qdisc add dev $DEV parent 1:13 handle 130: $QDISC limit 1000 $ECN `get_quantum 1480` `get_flows ${BULK}`
+tc qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 1000 $ECN `get_quantum 1480` `get_flows ${EXPRESS}`
+tc qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 1000 $ECN `get_quantum 1480` `get_flows ${BULK}`
+
 
 diffserv $DEV
 
