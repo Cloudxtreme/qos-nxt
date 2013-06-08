@@ -134,7 +134,7 @@ interface=$1
 prio=1
 
 tc filter add dev $interface parent 1:0 protocol all prio 999 u32 \
-        match ip protocol 0 0x00 flowid 1:13
+        match ip protocol 0 0x00 flowid 1:12
 
 fc 1:0 0x00 1:12 # DF/CS0
 fc 1:0 0x30 1:12 # AF12
@@ -187,9 +187,9 @@ ipt -t mangle -A POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IF
 egress() {
 
 CEIL=${UPLINK}
-EXPRESS=`expr $CEIL \* 70 / 100`
-MIN_EXPRESS=`expr $CEIL \* 50 / 100`
-BULK=`expr $CEIL \* 30 / 100`
+EXPRESS=`expr $CEIL \* 80 / 100`
+MIN_EXPRESS=`expr $CEIL \* 60 / 100`
+BULK=`expr $CEIL \* 20 / 100`
 
 
 tc qdisc del dev $IFACE root 2> /dev/null
@@ -210,9 +210,9 @@ diffserv $IFACE
 ingress() {
 
 CEIL=$DOWNLINK
-EXPRESS=`expr $CEIL \* 70 / 100`
-MIN_EXPRESS=`expr $CEIL \* 50 / 100`
-BULK=`expr $CEIL \* 30 / 100`
+EXPRESS=`expr $CEIL \* 80 / 100`
+MIN_EXPRESS=`expr $CEIL \* 60 / 100`
+BULK=`expr $CEIL \* 20 / 100`
 
 tc qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
 tc qdisc add dev $IFACE handle ffff: ingress
