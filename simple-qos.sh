@@ -37,21 +37,11 @@ do_modules() {
 [ -z "$DEV" ] && DEV=ifb0
 [ -z "$QDISC" ] && QDISC=fq_codel
 [ -z "$IFACE" ] && IFACE=pppoe-wan
-[ -z "$ADSL" ] && ADSL=0
-[ -z "$AUTOFLOW" ] && AUTOFLOW=0
+[ -z "$AUTOFLOW" ] && AUTOFLOW=1
 [ -z "$AUTOECN" ] && AUTOECN=1
 
 TC=/usr/sbin/tc
 CEIL=$UPLINK
-ADSLL=""
-
-if [ "$ADSL" == "1" ]
-then
-    OVERHEAD=10
-    LINKLAYER=adsl
-    ADSLL="linklayer ${LINKLAYER} overhead ${OVERHEAD}"
-fi
-
 
 aqm_stop() {
     ipt -t mangle -D POSTROUTING -o $DEV -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
