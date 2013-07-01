@@ -1,0 +1,9 @@
+# /etc/rc.local
+
+ifconfig 6to4-wan6 mtu 1434
+ifconfig eth1 txqueuelen 5
+/etc/debloat.sh eth0 1000 32
+/etc/debloat.sh wlan0 300 32
+/etc/debloat.sh wlan1 300 32
+/etc/simple-qos.sh
+exit 0
