@@ -1,21 +1,14 @@
 #!/bin/sh
-# debloat.sh -	improves network latency by reducing excessive buffering 
-#		and offloads on common devices and enabling fq_codel.
-# Copyright 2012 M D Taht. Released into the public domain.
 
-# This script is presently targetted to go into 
-# /etc/network/ifup.d on debian derived systems
-
-LL=1 # go for lowest latency
-ECN=1 # enable ECN
-BQLLIMIT100=3000 # at speeds below 100Mbit, 2 big packets is enough
-BQLLIMIT10=1514 # at speeds below 10Mbit, 1 big packet is enough. 
-		# Actually it would be nice to go to just one packet
-QDISC=fq_codel # There are multiple variants of fq_codel in testing
-FQ_LIMIT="" # the default 10000 packet limit mucks with slow start at speeds 
-            # at 1Gbit and below. Somewhat arbitrary figures selected.
-
+LL=1
+ECN=1
+BQLLIMIT1000=9000
+BQLLIMIT100=3000
+BQLLIMIT10=1514
+QDISC=fq_codel
+FQ_LIMIT=""
 IFACE=$1
+
 [ -z "$IFACE" ] && echo error: $0 expects IFACE parameter in environment && exit 1
 [ -z `which ethtool` ] && echo error: ethtool is required && exit 1
 [ -z `which tc` ] && echo error: tc is required && exit 1
@@ -68,14 +61,11 @@ fix_speed() {
 local SPEED=$2
 if [ -n "$SPEED" ]
 then
-	[ "$SPEED" = 4294967295 ] && echo "no ethernet speed selected. debloat estimate will be WRONG"
-	[ "$SPEED" -lt 1001 ] && FQ_LIMIT="limit 1200"
-	if [ "$SPEED" -lt 101 ]
-	then
-	[ $LL -eq 1 ] && et # for lowest latency disable offloads
-	BQLLIMIT=$BQLLIMIT100
-	FQ_LIMIT="limit 800"
-	[ "$SPEED" -lt 11 ] && BQLLIMIT=$BQLLIMIT10 && FQ_LIMIT="limit 400"
+	[ "$SPEED" -lt 1001 ] && FQ_LIMIT="limit 1200" && BQLLIMIT=$BQLLIMIT1000
+	[ "$SPEED" -lt 101 ] && FQ_LIMIT="limit 800" && BQLLIMIT=$BQLLIMIT100
+	[ "$SPEED" -lt 11 ] && FQ_LIMIT="limit 400" && BQLLIMIT=$BQLLIMIT10
+	[ $LL -eq 1 ] && et
+	
 	for I in /sys/class/net/$IFACE/queues/tx-*/byte_queue_limits/limit_max
 		do
 			echo $BQLLIMIT > $I
