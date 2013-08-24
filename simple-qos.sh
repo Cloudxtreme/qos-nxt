@@ -59,16 +59,6 @@ fc() {
     prio=$(($prio + 1))
 }
 
-get_mtu() {
-    F=`cat /sys/class/net/$1/mtu`
-    if [ -z "$F" ]
-    then
-    echo 1500
-    else
-    echo $F
-    fi
-}
-
 get_flows() {
     if [ "$AUTOFLOW" == 1 ]
     then
