@@ -2,7 +2,7 @@
 
 ifconfig 6to4-wan6 mtu 1434
 
-ifconfig eth1 txqueuelen 5
+ifconfig eth1 txqueuelen 16
 
 (
 	ethtool -K eth1 tso off
@@ -10,6 +10,7 @@ ifconfig eth1 txqueuelen 5
 	ethtool -K eth1 ufo off
 	ethtool -K eth1 gro off
 	ethtool -K eth1 lro off
+	ethtool -G eth1 tx 8
 ) 2> /dev/null
 
 for I in /sys/class/net/eth1/queues/tx-*/byte_queue_limits/limit_max
@@ -17,9 +18,9 @@ for I in /sys/class/net/eth1/queues/tx-*/byte_queue_limits/limit_max
 		echo 1514 > $I
 	done
 
-/etc/debloat.sh eth0 1000 50
-/etc/debloat.sh wlan0 450 32
-/etc/debloat.sh wlan1 450 32
+/etc/debloat.sh eth0 1000 100 64
+/etc/debloat.sh wlan0 450 50 16
+/etc/debloat.sh wlan1 450 50 16
 /etc/simple-qos.sh
 
 exit 0
