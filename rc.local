@@ -13,13 +13,13 @@ ifconfig eth1 txqueuelen 5
 ) 2> /dev/null
 
 for I in /sys/class/net/eth1/queues/tx-*/byte_queue_limits/limit_max
-		do
-			echo 1514 > $I
-		done
+	do
+		echo 1514 > $I
+	done
 
 /etc/debloat.sh eth0 1000 50
-/etc/debloat.sh wlan0 300 32
-/etc/debloat.sh wlan1 300 32
+/etc/debloat.sh wlan0 450 32
+/etc/debloat.sh wlan1 450 32
 /etc/simple-qos.sh
 
 exit 0
