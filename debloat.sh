@@ -8,8 +8,8 @@ BQLLIMIT10=1514
 QDISC=fq_codel
 FQ_LIMIT=""
 IFACE=$1
+SPEED=$2
 
-[ -z "$IFACE" ] && echo error: $0 expects IFACE parameter in environment && exit 1
 [ -z `which ethtool` ] && echo error: ethtool is required && exit 1
 [ -z `which tc` ] && echo error: tc is required && exit 1
 
@@ -32,7 +32,7 @@ et() {
 }
 
 wifi() {
-	tc qdisc add dev $IFACE handle 1 root mq 
+	tc qdisc add dev $IFACE handle 1 root mq
 	tc qdisc add dev $IFACE parent 1:1 $QDISC $FQ_OPTS noecn
 	tc qdisc add dev $IFACE parent 1:2 $QDISC $FQ_OPTS
 	tc qdisc add dev $IFACE parent 1:3 $QDISC $FQ_OPTS
@@ -41,7 +41,7 @@ wifi() {
 
 mq() {
 	local I=1
-	tc qdisc add dev $IFACE handle 1 root mq 
+	tc qdisc add dev $IFACE handle 1 root mq
 
 	for i in $S/$IFACE/queues/tx-*
 	do
@@ -58,40 +58,35 @@ fq_codel() {
 }
 
 fix_speed() {
-local SPEED=$2
-if [ -n "$SPEED" ]
-then
 	[ "$SPEED" -lt 1001 ] && FQ_LIMIT="limit 1200" && BQLLIMIT=$BQLLIMIT1000
 	[ "$SPEED" -lt 101 ] && FQ_LIMIT="limit 800" && BQLLIMIT=$BQLLIMIT100
 	[ "$SPEED" -lt 11 ] && FQ_LIMIT="limit 400" && BQLLIMIT=$BQLLIMIT10
 	[ $LL -eq 1 ] && et
-	
+
 	for I in /sys/class/net/$IFACE/queues/tx-*/byte_queue_limits/limit_max
 		do
 			echo $BQLLIMIT > $I
 		done
-fi
 }
 
 fix_queues() {
-local QUEUES=`ls -d $S/$IFACE/queues/tx-* | wc -l | awk '{print $1}'`
-if [ $QUEUES -gt 1 ]
-then
-	if [ -x $S/$IFACE/phy80211 ] 
+	tc qdisc del dev $IFACE root 2> /dev/null
+	ifconfig $IFACE txqueuelen $3
+	local QUEUES=`ls -d $S/$IFACE/queues/tx-* | wc -l | awk '{print $1}'`
+	if [ $QUEUES -gt 1 ]
 	then
-		wifi
+		if [ -x $S/$IFACE/phy80211 ]
+		then
+			wifi
+		else
+			mq
+		fi
 	else
-		mq
+		fq_codel
 	fi
-else
-	fq_codel
-fi
 }
 
-
-tc qdisc del dev $IFACE root 2> /dev/null
 fix_speed
 fix_queues
-ifconfig $IFACE txqueuelen $3 
 
 exit 0
