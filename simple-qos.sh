@@ -3,7 +3,6 @@
 UPLINK=220
 DOWNLINK=1600
 
-
 IFACE=pppoe-wan
 DEV=ifb0
 
