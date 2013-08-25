@@ -9,6 +9,7 @@ QDISC=fq_codel
 FQ_LIMIT=""
 IFACE=$1
 SPEED=$2
+TXLEN=$3
 
 [ -z `which ethtool` ] && echo error: ethtool is required && exit 1
 [ -z `which tc` ] && echo error: tc is required && exit 1
@@ -71,7 +72,7 @@ fix_speed() {
 
 fix_queues() {
 	tc qdisc del dev $IFACE root 2> /dev/null
-	ifconfig $IFACE txqueuelen $3
+	ifconfig $IFACE txqueuelen $TXLEN
 	local QUEUES=`ls -d $S/$IFACE/queues/tx-* | wc -l | awk '{print $1}'`
 	if [ $QUEUES -gt 1 ]
 	then
