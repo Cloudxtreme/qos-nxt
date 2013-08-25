@@ -1,5 +1,20 @@
 #!/bin/sh
 
+UPLINK=220
+DOWNLINK=1600
+
+
+IFACE=pppoe-wan
+DEV=ifb0
+
+QDISC=fq_codel
+AUTOFLOW=1
+AUTOECN=1
+
+ECN=""
+NOECN=""
+TC=/usr/sbin/tc
+
 insmod() {
     lsmod | grep -q ^$1 || /sbin/insmod $1
 }
@@ -29,18 +44,6 @@ do_modules() {
     insmod em_u32
     insmod sch_fq_codel
 }
-
-[ -z "$UPLINK" ] && UPLINK=220
-[ -z "$DOWNLINK" ] && DOWNLINK=1600
-[ -z "$DEV" ] && DEV=ifb0
-[ -z "$QDISC" ] && QDISC=fq_codel
-[ -z "$IFACE" ] && IFACE=pppoe-wan
-[ -z "$AUTOFLOW" ] && AUTOFLOW=1
-[ -z "$AUTOECN" ] && AUTOECN=1
-
-ECN=""
-NOECN=""
-TC=/usr/sbin/tc
 
 aqm_stop() {
     ipt -t mangle -D POSTROUTING -o $DEV -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
@@ -177,10 +180,10 @@ egress() {
 
     $TC class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
 
-    $TC qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 500 \
+    $TC qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 250 \
     $NOECN `get_quantum 500` `get_flows $EXPRESS`
 
-    $TC qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 1000 \
+    $TC qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 250 \
     $NOECN `get_quantum 1500` `get_flows $BULK`
 
     diffserv $IFACE
@@ -208,10 +211,10 @@ ingress() {
 
     $TC class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
 
-    $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 1000 \
+    $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 500 \
     $ECN `get_quantum 1500` `get_flows $EXPRESS`
 
-    $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 1000 \
+    $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 500 \
     $ECN `get_quantum 1500` `get_flows $BULK`
 
     diffserv $DEV
