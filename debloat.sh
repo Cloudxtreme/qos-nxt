@@ -10,6 +10,7 @@ FQ_LIMIT=""
 IFACE=$1
 SPEED=$2
 TXLEN=$3
+TXRING=$4
 
 [ -z `which ethtool` ] && echo error: ethtool is required && exit 1
 [ -z `which tc` ] && echo error: tc is required && exit 1
@@ -29,6 +30,7 @@ et() {
 	ethtool -K $IFACE ufo off
 	ethtool -K $IFACE gro off
 	ethtool -K $IFACE lro off
+	ethtool -G $IFACE tx $TXRING
 ) 2> /dev/null
 }
 
