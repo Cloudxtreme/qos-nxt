@@ -70,7 +70,6 @@ then
 		do
 			echo $BQLLIMIT > $I
 		done
-	fi
 fi
 }
 
