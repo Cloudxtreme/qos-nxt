@@ -72,8 +72,7 @@ get_flows() {
     
     if [ "$AUTOFLOW" == 1 ]
     then
-    FLOWS=8
-    [ $1 -gt 999 ] && FLOWS=16
+    FLOWS=16
     [ $1 -gt 2999 ] && FLOWS=32
     [ $1 -gt 7999 ] && FLOWS=48
     [ $1 -gt 9999 ] && FLOWS=64
