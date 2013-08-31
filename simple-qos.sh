@@ -156,6 +156,7 @@ ipt_setup() {
     ipt -t mangle -N QOS_MARK_${IFACE}
 
     ipt -t mangle -A QOS_MARK_${IFACE} -j DSCP --set-dscp-class AF12
+    
     ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m multiport \
     --ports 20,21,22,25,53,80,110,123,443,465,993,995 -j DSCP --set-dscp-class AF42
 
