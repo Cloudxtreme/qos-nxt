@@ -1,7 +1,7 @@
 #!/bin/sh
 
-UPLINK=220
-DOWNLINK=1600
+UPLINK=220 #kbps
+DOWNLINK=1600 #kbps
 
 IFACE=pppoe-wan
 DEV=ifb0
@@ -15,10 +15,13 @@ NOECN=""
 TC=/usr/sbin/tc
 
 insmod() {
+    
     lsmod | grep -q ^$1 || /sbin/insmod $1
+
 }
 
 ipt() {
+    
     d=`echo $* | sed s/-A/-D/g`
     [ "$d" != "$*" ] && {
         iptables $d > /dev/null 2>&1
@@ -26,25 +29,26 @@ ipt() {
     }
     iptables $* > /dev/null 2>&1
     ip6tables $* > /dev/null 2>&1
+    
 }
 
 do_modules() {
-    insmod sch_$QDISC
+    
+    insmod sch_${QDISC}
     insmod sch_ingress
     insmod act_mirred
     insmod cls_fw
     insmod sch_hfsc
     insmod ipt_multiport
     insmod ipt_dscp
-    insmod ipt_tos
-    insmod ipt_length
     insmod ifb
     insmod cls_u32
     insmod em_u32
-    insmod sch_fq_codel
+    
 }
 
 aqm_stop() {
+    
     ipt -t mangle -D POSTROUTING -o $DEV -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
     ipt -t mangle -D POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
     ipt -t mangle -F QOS_MARK_${IFACE}
@@ -52,16 +56,20 @@ aqm_stop() {
     $TC qdisc del dev $IFACE ingress
     $TC qdisc del dev $IFACE root
     $TC qdisc del dev $DEV root
+    
 }
 
 fc() {
+    
     $TC filter add dev $interface protocol ip parent $1 prio $prio u32 match ip tos $2 0xfc classid $3
     prio=$(($prio + 1))
     $TC filter add dev $interface protocol ipv6 parent $1 prio $prio u32 match ip6 priority $2 0xfc classid $3
     prio=$(($prio + 1))
+
 }
 
 get_flows() {
+    
     if [ "$AUTOFLOW" == 1 ]
     then
     FLOWS=8
@@ -78,26 +86,29 @@ get_flows() {
         fq_codel|*fq_codel|sfq) echo flows $FLOWS ;;
     esac
     fi
+    
 }
 
 get_quantum() {
+    
     case $QDISC in
-    *fq_codel|fq_pie|drr) echo quantum $1 ;;
-    *) ;;
+        *fq_codel|fq_pie|drr) echo quantum $1 ;;
+        *) ;;
     esac
+    
 }
 
 qdisc_variants() {
+    
     if [ "$AUTOECN" == 1 ]
     then
     case $QDISC in
-    *codel|pie) ECN=ecn; NOECN=noecn ;;
-    *) ;;
+        *codel|pie) ECN=ecn; NOECN=noecn ;;
+        *) ;;
     esac
     fi
+    
 }
-
-qdisc_variants
 
 diffserv() {
 
@@ -106,12 +117,12 @@ diffserv() {
 
     $TC filter add dev $interface parent 1:0 protocol all prio 999 u32 \
             match ip protocol 0 0x00 flowid 1:12
-
-    fc 1:0 0x00 1:12 # DF/CS0
+    
     fc 1:0 0x30 1:12 # AF12
+    fc 1:0 0x90 1:11 # AF42
+    fc 1:0 0xc0 1:11 # CS6
     fc 1:0 0x02 1:12 # COS
     fc 1:0 0xb8 1:11 # EF
-    fc 1:0 0x90 1:11 # AF42
     fc 1:0 0x10 1:11 # IMM
     fc 1:0 0x08 1:12 # THRO
     fc 1:0 0x04 1:12 # REL
@@ -122,7 +133,6 @@ diffserv() {
     fc 1:0 0x60 1:12 # CS3
     fc 1:0 0x80 1:11 # CS4
     fc 1:0 0xa0 1:11 # CS5
-    fc 1:0 0xc0 1:11 # CS6
     fc 1:0 0xe0 1:11 # CS7
     fc 1:0 0x28 1:12 # AF11
     fc 1:0 0x38 1:12 # AF13
@@ -132,6 +142,7 @@ diffserv() {
     fc 1:0 0x78 1:12 # AF33
     fc 1:0 0x88 1:11 # AF41
     fc 1:0 0x98 1:11 # AF43
+    fc 1:0 0x00 1:12 # DF/CS0
 
     $TC filter add dev $interface parent 1:0 protocol arp \
     prio $prio handle 1 fw classid 1:11
@@ -224,6 +235,7 @@ ingress() {
 
 }
 
+qdisc_variants
 do_modules
 aqm_stop
 ipt_setup
