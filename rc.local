@@ -18,9 +18,10 @@ for I in /sys/class/net/eth1/queues/tx-*/byte_queue_limits/limit_max
 		echo 1514 > $I
 	done
 
+/etc/simple-qos.sh
+
 /etc/debloat.sh eth0 1000 100 64
 /etc/debloat.sh wlan0 450 50 16
 /etc/debloat.sh wlan1 450 50 16
-/etc/simple-qos.sh
 
 exit 0
