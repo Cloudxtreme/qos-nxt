@@ -1,7 +1,7 @@
 #!/bin/sh
 
-UPLINK=220 #kbps
-DOWNLINK=1600 #kbps
+UPLINK=370 #kbps
+DOWNLINK=1450 #kbps
 
 IFACE=pppoe-wan
 DEV=ifb0
