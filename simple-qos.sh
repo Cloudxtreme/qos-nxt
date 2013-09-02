@@ -177,7 +177,6 @@ egress() {
 
     CEIL=$UPLINK
     EXPRESS=`expr $CEIL \* 80 / 100`
-    MIN_EXPRESS=`expr $CEIL \* 60 / 100`
     BULK=`expr $CEIL \* 20 / 100`
 
     $TC qdisc del dev $IFACE root 2> /dev/null
@@ -186,8 +185,7 @@ egress() {
     $TC class add dev $IFACE parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit \
     ul rate ${CEIL}kbit
 
-    $TC class add dev $IFACE parent 1:1 classid 1:11 hfsc rt rate ${MIN_EXPRESS}kbit \
-    ls rate ${EXPRESS}kbit
+    $TC class add dev $IFACE parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit
 
     $TC class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
 
@@ -205,7 +203,6 @@ ingress() {
 
     CEIL=$DOWNLINK
     EXPRESS=`expr $CEIL \* 80 / 100`
-    MIN_EXPRESS=`expr $CEIL \* 60 / 100`
     BULK=`expr $CEIL \* 20 / 100`
 
     $TC qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
@@ -217,8 +214,7 @@ ingress() {
     $TC class add dev $DEV parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit \
     ul rate ${CEIL}kbit
 
-    $TC class add dev $DEV parent 1:1 classid 1:11 hfsc rt rate ${MIN_EXPRESS}kbit \
-    ls rate ${EXPRESS}kbit
+    $TC class add dev $DEV parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit
 
     $TC class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
 
