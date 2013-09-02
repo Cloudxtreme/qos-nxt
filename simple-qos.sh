@@ -191,10 +191,10 @@ egress() {
     $TC class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
 
     $TC qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 500 \
-    $NOECN `get_quantum 375` `get_flows $EXPRESS`
+    $NOECN `get_quantum 256` `get_flows $EXPRESS`
 
     $TC qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 500 \
-    $NOECN `get_quantum 375` `get_flows $BULK`
+    $NOECN `get_quantum 256` `get_flows $BULK`
 
     diffserv $IFACE
 
@@ -222,10 +222,10 @@ ingress() {
     $TC class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
 
     $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 500 \
-    $ECN `get_quantum 375` `get_flows $EXPRESS`
+    $ECN `get_quantum 256` `get_flows $EXPRESS`
 
     $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 500 \
-    $ECN `get_quantum 375` `get_flows $BULK`
+    $ECN `get_quantum 256` `get_flows $BULK`
 
     diffserv $DEV
     ifconfig $DEV up
