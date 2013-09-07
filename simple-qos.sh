@@ -15,13 +15,13 @@ NOECN=""
 TC=/usr/sbin/tc
 
 insmod() {
-    
+
     lsmod | grep -q ^$1 || /sbin/insmod $1
 
 }
 
 ipt() {
-    
+
     d=`echo $* | sed s/-A/-D/g`
     [ "$d" != "$*" ] && {
         iptables $d > /dev/null 2>&1
@@ -29,11 +29,11 @@ ipt() {
     }
     iptables $* > /dev/null 2>&1
     ip6tables $* > /dev/null 2>&1
-    
+
 }
 
 do_modules() {
-    
+
     insmod sch_${QDISC}
     insmod sch_ingress
     insmod act_mirred
@@ -44,11 +44,11 @@ do_modules() {
     insmod ifb
     insmod cls_u32
     insmod em_u32
-    
+
 }
 
 aqm_stop() {
-    
+
     ipt -t mangle -D POSTROUTING -o $DEV -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
     ipt -t mangle -D POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
     ipt -t mangle -F QOS_MARK_${IFACE}
@@ -56,11 +56,11 @@ aqm_stop() {
     $TC qdisc del dev $IFACE ingress
     $TC qdisc del dev $IFACE root
     $TC qdisc del dev $DEV root
-    
+
 }
 
 fc() {
-    
+
     $TC filter add dev $interface protocol ip parent $1 prio $prio u32 match ip tos $2 0xfc classid $3
     prio=$(($prio + 1))
     $TC filter add dev $interface protocol ipv6 parent $1 prio $prio u32 match ip6 priority $2 0xfc classid $3
@@ -69,7 +69,7 @@ fc() {
 }
 
 get_flows() {
-    
+
     if [ "$AUTOFLOW" == 1 ]
     then
     FLOWS=8
@@ -86,20 +86,20 @@ get_flows() {
         fq_codel|*fq_codel|sfq) echo flows $FLOWS ;;
     esac
     fi
-    
+
 }
 
 get_quantum() {
-    
+
     case $QDISC in
         *fq_codel|fq_pie|drr) echo quantum $1 ;;
         *) ;;
     esac
-    
+
 }
 
 qdisc_variants() {
-    
+
     if [ "$AUTOECN" == 1 ]
     then
     case $QDISC in
@@ -107,7 +107,7 @@ qdisc_variants() {
         *) ;;
     esac
     fi
-    
+
 }
 
 diffserv() {
@@ -117,17 +117,18 @@ diffserv() {
 
     $TC filter add dev $interface parent 1:0 protocol all prio 999 u32 \
             match ip protocol 0 0x00 flowid 1:12
-    
+
+    fc 1:0 0x00 1:12 # DF/CS0
     fc 1:0 0x30 1:12 # AF12
     fc 1:0 0x90 1:11 # AF42
     fc 1:0 0xc0 1:11 # CS6
+    fc 1:0 0x70 1:12 # AF32
+    fc 1:0 0x50 1:12 # AF22
     fc 1:0 0x02 1:12 # COS
     fc 1:0 0xb8 1:11 # EF
     fc 1:0 0x10 1:11 # IMM
     fc 1:0 0x08 1:12 # THRO
     fc 1:0 0x04 1:12 # REL
-    fc 1:0 0x50 1:12 # AF22
-    fc 1:0 0x70 1:12 # AF32
     fc 1:0 0x20 1:12 # CS1
     fc 1:0 0x40 1:12 # CS2
     fc 1:0 0x60 1:12 # CS3
@@ -142,7 +143,6 @@ diffserv() {
     fc 1:0 0x78 1:12 # AF33
     fc 1:0 0x88 1:11 # AF41
     fc 1:0 0x98 1:11 # AF43
-    fc 1:0 0x00 1:12 # DF/CS0
 
     $TC filter add dev $interface parent 1:0 protocol arp \
     prio $prio handle 1 fw classid 1:11
@@ -155,13 +155,15 @@ ipt_setup() {
 
     ipt -t mangle -N QOS_MARK_${IFACE}
 
-    ipt -t mangle -A QOS_MARK_${IFACE} -j DSCP --set-dscp-class AF12
-    
     ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m multiport \
     --ports 20,21,22,25,53,80,110,123,443,465,993,995 -j DSCP --set-dscp-class AF42
 
     ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m multiport \
     --ports 20,21,22,25,53,80,110,123,443,465,993,995 -j DSCP --set-dscp-class AF42
+
+    ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m dscp --dscp-class AF42 \
+    -m connbytes --connbytes-dir both --connbytes-mode bytes \
+    --connbytes 20000000: -j DSCP --set-dscp-class AF32
 
     ipt -t mangle -A QOS_MARK_${IFACE} -p icmp -j DSCP --set-dscp-class CS6
 
@@ -187,7 +189,7 @@ egress() {
 
     $TC class add dev $IFACE parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit
 
-    $TC class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
+    $TC class add dev $IFACE parent 1:1 classid 1:12 hfsc ls rate ${BULK}kbit
 
     $TC qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 500 \
     $NOECN `get_quantum 375` `get_flows $EXPRESS`
@@ -216,7 +218,7 @@ ingress() {
 
     $TC class add dev $DEV parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit
 
-    $TC class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
+    $TC class add dev $DEV parent 1:1 classid 1:12 hfsc ls rate ${BULK}kbit
 
     $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 500 \
     $ECN `get_quantum 375` `get_flows $EXPRESS`
