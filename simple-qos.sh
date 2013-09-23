@@ -1,7 +1,7 @@
 #!/bin/sh
 
-UPLINK=370 #kbps
-DOWNLINK=1450 #kbps
+UPLINK=330 #kbps
+DOWNLINK=1370 #kbps
 
 IFACE=pppoe-wan
 DEV=ifb0
@@ -179,6 +179,7 @@ egress() {
 
     CEIL=$UPLINK
     EXPRESS=`expr $CEIL \* 80 / 100`
+    MIN_EXPRESS=`expr $CEIL \* 60 / 100`
     BULK=`expr $CEIL \* 20 / 100`
 
     $TC qdisc del dev $IFACE root 2> /dev/null
@@ -187,9 +188,10 @@ egress() {
     $TC class add dev $IFACE parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit \
     ul rate ${CEIL}kbit
 
-    $TC class add dev $IFACE parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit
+    $TC class add dev $IFACE parent 1:1 classid 1:11 hfsc rt rate ${MIN_EXPRESS}kbit \
+    ls rate ${EXPRESS}kbit
 
-    $TC class add dev $IFACE parent 1:1 classid 1:12 hfsc ls rate ${BULK}kbit
+    $TC class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
 
     $TC qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 500 \
     $NOECN `get_quantum 375` `get_flows $EXPRESS`
@@ -205,26 +207,28 @@ ingress() {
 
     CEIL=$DOWNLINK
     EXPRESS=`expr $CEIL \* 80 / 100`
+    MIN_EXPRESS=`expr $CEIL \* 60 / 100`
     BULK=`expr $CEIL \* 20 / 100`
 
     $TC qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
     $TC qdisc add dev $IFACE handle ffff: ingress
 
-    $TC qdisc del dev $DEV root  2> /dev/null
+    $TC qdisc del dev $DEV root 2> /dev/null
     $TC qdisc add dev $DEV root handle 1: hfsc
 
     $TC class add dev $DEV parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit \
     ul rate ${CEIL}kbit
 
-    $TC class add dev $DEV parent 1:1 classid 1:11 hfsc sc rate ${EXPRESS}kbit
+    $TC class add dev $DEV parent 1:1 classid 1:11 hfsc rt rate ${MIN_EXPRESS}kbit \
+    ls rate ${EXPRESS}kbit
 
-    $TC class add dev $DEV parent 1:1 classid 1:12 hfsc ls rate ${BULK}kbit
+    $TC class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
 
     $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 500 \
-    $ECN `get_quantum 375` `get_flows $EXPRESS`
+    $ECN `get_quantum 750` `get_flows $EXPRESS`
 
     $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 500 \
-    $ECN `get_quantum 375` `get_flows $BULK`
+    $ECN `get_quantum 750` `get_flows $BULK`
 
     diffserv $DEV
     ifconfig $DEV up
