@@ -242,18 +242,18 @@ ingress() {
     $TC filter add dev $DEV protocol ip parent 1:0 prio 10 u32 match ip sport 465 0xffff classid 1:11
     $TC filter add dev $DEV protocol ip parent 1:0 prio 11 u32 match ip sport 993 0xffff classid 1:11
     $TC filter add dev $DEV protocol ip parent 1:0 prio 12 u32 match ip sport 995 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 13 u32 match ipv6 sport 20 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 14 u32 match ipv6 sport 21 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 15 u32 match ipv6 sport 22 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 16 u32 match ipv6 sport 25 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 17 u32 match ipv6 sport 53 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 18 u32 match ipv6 sport 80 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 19 u32 match ipv6 sport 110 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 20 u32 match ipv6 sport 123 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 21 u32 match ipv6 sport 443 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 22 u32 match ipv6 sport 465 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 23 u32 match ipv6 sport 993 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 24 u32 match ipv6 sport 995 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 13 u32 match ip sport 20 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 14 u32 match ip sport 21 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 15 u32 match ip sport 22 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 16 u32 match ip sport 25 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 17 u32 match ip sport 53 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 18 u32 match ip sport 80 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 19 u32 match ip sport 110 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 20 u32 match ip sport 123 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 21 u32 match ip sport 443 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 22 u32 match ip sport 465 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 23 u32 match ip sport 993 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 24 u32 match ip sport 995 0xffff classid 1:11
     $TC filter add dev $DEV protocol arp parent 1:0 prio 25 handle 1 fw classid 1:11
     
     $TC filter add dev $DEV parent 1:0 protocol all prio 999 u32 \
