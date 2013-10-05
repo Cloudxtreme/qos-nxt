@@ -48,7 +48,7 @@ do_modules() {
 }
 
 aqm_stop() {
-    
+
     ipt -t mangle -D OUTPUT -p udp -m multiport --ports 53,123 -j DSCP --set-dscp-class AF42
     ipt -t mangle -D POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
     ipt -t mangle -F QOS_MARK_${IFACE}
@@ -169,7 +169,7 @@ ipt_setup() {
 
     ipt -t mangle -A POSTROUTING -o $IFACE -m dscp --dscp-class CS0 \
     -g QOS_MARK_${IFACE}
-    
+
     ipt -t mangle -A OUTPUT -p udp -m multiport --ports 53,123 -j DSCP --set-dscp-class AF42
 
 }
@@ -226,8 +226,7 @@ ingress() {
 
     $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 500 \
     $ECN `get_quantum 375` `get_flows $BULK`
-    
-    
+
     $TC filter add dev $DEV protocol ip parent 1:0 prio 1 u32 match ip sport 20 0xffff classid 1:11
     $TC filter add dev $DEV protocol ip parent 1:0 prio 2 u32 match ip sport 21 0xffff classid 1:11
     $TC filter add dev $DEV protocol ip parent 1:0 prio 3 u32 match ip sport 22 0xffff classid 1:11
@@ -253,10 +252,10 @@ ingress() {
     $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 23 u32 match ip sport 993 0xffff classid 1:11
     $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 24 u32 match ip sport 995 0xffff classid 1:11
     $TC filter add dev $DEV protocol arp parent 1:0 prio 25 handle 1 fw classid 1:11
-    
+
     $TC filter add dev $DEV parent 1:0 protocol all prio 999 u32 \
             match ip protocol 0 0x00 flowid 1:12
-    
+
     ifconfig $DEV up
 
     $TC filter add dev $IFACE parent ffff: protocol all prio 998 u32 \
