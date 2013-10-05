@@ -48,8 +48,8 @@ do_modules() {
 }
 
 aqm_stop() {
-
-    ipt -t mangle -D POSTROUTING -o $DEV -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
+    
+    ipt -t mangle -D OUTPUT -p udp -m multiport --ports 53,123 -j DSCP --set-dscp-class AF42
     ipt -t mangle -D POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
     ipt -t mangle -F QOS_MARK_${IFACE}
     ipt -t mangle -X QOS_MARK_${IFACE}
@@ -167,9 +167,6 @@ ipt_setup() {
 
     ipt -t mangle -A QOS_MARK_${IFACE} -p icmp -j DSCP --set-dscp-class CS6
 
-    ipt -t mangle -A POSTROUTING -o $DEV -m dscp --dscp-class CS0 \
-    -g QOS_MARK_${IFACE}
-
     ipt -t mangle -A POSTROUTING -o $IFACE -m dscp --dscp-class CS0 \
     -g QOS_MARK_${IFACE}
     
@@ -231,8 +228,25 @@ ingress() {
 
     $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 500 \
     $ECN `get_quantum 750` `get_flows $BULK`
-
-    diffserv $DEV
+    
+    
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 1 u32 match ip sport 20 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 2 u32 match ip sport 21 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 3 u32 match ip sport 22 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 4 u32 match ip sport 25 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 5 u32 match ip sport 53 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 6 u32 match ip sport 80 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 7 u32 match ip sport 110 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 8 u32 match ip sport 123 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 9 u32 match ip sport 443 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 10 u32 match ip sport 465 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 11 u32 match ip sport 993 0xffff classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 12 u32 match ip sport 995 0xffff classid 1:11
+    $TC filter add dev $DEV protocol arp parent 1:0 prio 13 handle 1 fw classid 1:11
+    
+    $TC filter add dev $DEV parent 1:0 protocol all prio 999 u32 \
+            match ip protocol 0 0x00 flowid 1:12
+    
     ifconfig $DEV up
 
     $TC filter add dev $IFACE parent ffff: protocol all prio 10 u32 \
