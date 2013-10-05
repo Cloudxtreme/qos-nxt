@@ -172,6 +172,8 @@ ipt_setup() {
 
     ipt -t mangle -A POSTROUTING -o $IFACE -m dscp --dscp-class CS0 \
     -g QOS_MARK_${IFACE}
+    
+    ipt -t mangle -A OUTPUT -p udp -m multiport --ports 53,123 -j DSCP --set-dscp-class AF42
 
 }
 
@@ -206,9 +208,9 @@ egress() {
 ingress() {
 
     CEIL=$DOWNLINK
-    EXPRESS=`expr $CEIL \* 80 / 100`
-    MIN_EXPRESS=`expr $CEIL \* 60 / 100`
-    BULK=`expr $CEIL \* 20 / 100`
+    EXPRESS=`expr $CEIL \* 60 / 100`
+    MIN_EXPRESS=`expr $CEIL \* 40 / 100`
+    BULK=`expr $CEIL \* 40 / 100`
 
     $TC qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
     $TC qdisc add dev $IFACE handle ffff: ingress
