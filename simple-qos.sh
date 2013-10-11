@@ -116,7 +116,7 @@ diffserv() {
     prio=1
 
     $TC filter add dev $interface parent 1:0 protocol all prio 999 u32 \
-            match ip protocol 0 0x00 flowid 1:12
+            match ip protocol 0 0x00 classid 1:12
 
     fc 1:0 0x00 1:12 # DF/CS0
     fc 1:0 0x30 1:12 # AF12
@@ -251,10 +251,13 @@ ingress() {
     $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 22 u32 match ip sport 465 0xffff classid 1:11
     $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 23 u32 match ip sport 993 0xffff classid 1:11
     $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 24 u32 match ip sport 995 0xffff classid 1:11
+
     $TC filter add dev $DEV protocol arp parent 1:0 prio 25 handle 1 fw classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 26 u32 match ip protocol 1 0xff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 27 u32 match ip protocol 1 0xff classid 1:11
 
     $TC filter add dev $DEV parent 1:0 protocol all prio 999 u32 \
-            match ip protocol 0 0x00 flowid 1:12
+            match ip protocol 0 0x00 classid 1:12
 
     ifconfig $DEV up
 
