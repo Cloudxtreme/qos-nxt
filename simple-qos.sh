@@ -163,7 +163,7 @@ ipt_setup() {
 
     ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m dscp --dscp-class AF42 \
     -m connbytes --connbytes-dir both --connbytes-mode bytes \
-    --connbytes 20000000: -j DSCP --set-dscp-class AF32
+    --connbytes 200000000: -j DSCP --set-dscp-class AF32
 
     ipt -t mangle -A QOS_MARK_${IFACE} -p icmp -j DSCP --set-dscp-class CS6
 
