@@ -1,7 +1,5 @@
 # /etc/rc.local
 
-ifconfig 6to4-wan6 mtu 1434
-
 ifconfig eth1 txqueuelen 16
 
 (
@@ -21,7 +19,7 @@ for I in /sys/class/net/eth1/queues/tx-*/byte_queue_limits/limit_max
 /etc/simple-qos.sh
 
 /etc/debloat.sh eth0 1000 100 64
-/etc/debloat.sh wlan0 450 50 16
+/etc/debloat.sh eth0.1 1000 100 64
 /etc/debloat.sh wlan1 450 50 16
 
 exit 0
