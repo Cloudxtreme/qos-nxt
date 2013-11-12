@@ -3,7 +3,7 @@
 LL=1
 ECN=1
 BQLLIMIT1000=9000
-BQLLIMIT100=3000
+BQLLIMIT500=4500
 BQLLIMIT10=1514
 QDISC=fq_codel
 FQ_LIMIT=""
@@ -62,7 +62,7 @@ fq_codel() {
 
 fix_speed() {
 	[ "$SPEED" -lt 1001 ] && FQ_LIMIT="limit 1200" && BQLLIMIT=$BQLLIMIT1000
-	[ "$SPEED" -lt 501 ] && FQ_LIMIT="limit 800" && BQLLIMIT=$BQLLIMIT100
+	[ "$SPEED" -lt 501 ] && FQ_LIMIT="limit 800" && BQLLIMIT=$BQLLIMIT500
 	[ "$SPEED" -lt 11 ] && FQ_LIMIT="limit 400" && BQLLIMIT=$BQLLIMIT10
 	[ $LL -eq 1 ] && et
 
