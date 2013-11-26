@@ -3,7 +3,7 @@
 LL=1
 ECN=1
 BQLLIMIT1000=9000
-BQLLIMIT100=4500
+BQLLIMIT500=4500
 BQLLIMIT10=1514
 QDISC=fq_codel
 FQ_LIMIT=""
@@ -36,10 +36,10 @@ et() {
 
 wifi() {
 	tc qdisc add dev $IFACE handle 1 root mq
-	tc qdisc add dev $IFACE parent 1:1 $QDISC $FQ_OPTS noecn
-	tc qdisc add dev $IFACE parent 1:2 $QDISC $FQ_OPTS
-	tc qdisc add dev $IFACE parent 1:3 $QDISC $FQ_OPTS
-	tc qdisc add dev $IFACE parent 1:4 $QDISC $FQ_OPTS noecn
+	tc qdisc add dev $IFACE parent 1:1 $QDISC $FQ_OPTS $FQ_LIMIT
+	tc qdisc add dev $IFACE parent 1:2 $QDISC $FQ_OPTS $FQ_LIMIT
+	tc qdisc add dev $IFACE parent 1:3 $QDISC $FQ_OPTS $FQ_LIMIT
+	tc qdisc add dev $IFACE parent 1:4 $QDISC $FQ_OPTS $FQ_LIMIT
 }
 
 mq() {
@@ -48,7 +48,7 @@ mq() {
 
 	for i in $S/$IFACE/queues/tx-*
 	do
-		tc qdisc add dev $IFACE parent 1:$(printf "%x" $I) $QDISC $FQ_OPTS
+		tc qdisc add dev $IFACE parent 1:$(printf "%x" $I) $QDISC $FQ_OPTS $FQ_LIMIT
 		I=`expr $I + 1`
 	done
 	I=`expr $I - 1`
@@ -62,7 +62,7 @@ fq_codel() {
 
 fix_speed() {
 	[ "$SPEED" -lt 1001 ] && FQ_LIMIT="limit 1200" && BQLLIMIT=$BQLLIMIT1000
-	[ "$SPEED" -lt 101 ] && FQ_LIMIT="limit 800" && BQLLIMIT=$BQLLIMIT100
+	[ "$SPEED" -lt 501 ] && FQ_LIMIT="limit 800" && BQLLIMIT=$BQLLIMIT500
 	[ "$SPEED" -lt 11 ] && FQ_LIMIT="limit 400" && BQLLIMIT=$BQLLIMIT10
 	[ $LL -eq 1 ] && et
 
