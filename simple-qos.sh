@@ -70,6 +70,15 @@ fc() {
 
 }
 
+sc() {
+
+    $TC filter add dev $1 protocol ip parent $2 prio $prio u32 match ip sport $3 0xffff classid $4
+    prio=$(($prio + 1))
+    $TC filter add dev $1 protocol ipv6 parent $2 prio $prio u32 match ip sport $3 0xffff classid $4
+    prio=$(($prio + 1))
+
+}
+
 get_flows() {
 
     if [ "$AUTOFLOW" == 1 ]
@@ -233,36 +242,27 @@ ingress() {
     $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 500 \
     $ECN `get_quantum 375` `get_flows $BULK`
 
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 1 u32 match ip sport 20 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 2 u32 match ip sport 21 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 3 u32 match ip sport 22 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 4 u32 match ip sport 25 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 5 u32 match ip sport 53 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 6 u32 match ip sport 80 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 7 u32 match ip sport 110 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 8 u32 match ip sport 123 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 9 u32 match ip sport 443 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 10 u32 match ip sport 465 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 11 u32 match ip sport 993 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 12 u32 match ip sport 995 0xffff classid 1:11
+    prio=1
+    
+    sc $DEV 1:0 20 1:11
+    sc $DEV 1:0 21 1:11
+    sc $DEV 1:0 22 1:11
+    sc $DEV 1:0 25 1:11
+    sc $DEV 1:0 53 1:11
+    sc $DEV 1:0 80 1:11
+    sc $DEV 1:0 110 1:11
+    sc $DEV 1:0 123 1:11
+    sc $DEV 1:0 443 1:11
+    sc $DEV 1:0 465 1:11
+    sc $DEV 1:0 993 1:11
+    sc $DEV 1:0 995 1:11
 
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 13 u32 match ip sport 20 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 14 u32 match ip sport 21 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 15 u32 match ip sport 22 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 16 u32 match ip sport 25 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 17 u32 match ip sport 53 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 18 u32 match ip sport 80 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 19 u32 match ip sport 110 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 20 u32 match ip sport 123 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 21 u32 match ip sport 443 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 22 u32 match ip sport 465 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 23 u32 match ip sport 993 0xffff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 24 u32 match ip sport 995 0xffff classid 1:11
-
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 25 u32 match ip protocol 1 0xff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 26 u32 match ip protocol 1 0xff classid 1:11
+    $TC filter add dev $DEV protocol ip parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
+    prio=$(($prio + 1))
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
+    prio=$(($prio + 1))
             
-    diffserv $DEV 27
+    diffserv $DEV $prio
 
     ifconfig $DEV up
 
