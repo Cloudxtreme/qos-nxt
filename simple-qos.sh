@@ -49,12 +49,6 @@ do_modules() {
 
 aqm_stop() {
 
-    ipt -t mangle -D OUTPUT -p udp -m multiport --ports 53,123 -j DSCP --set-dscp-class AF42
-    ipt -t mangle -D OUTPUT -p tcp -m multiport --ports 53,123 -j DSCP --set-dscp-class AF42
-    ipt -t mangle -D OUTPUT -p icmp -j DSCP --set-dscp-class CS6
-    ipt -t mangle -D POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
-    ipt -t mangle -F QOS_MARK_${IFACE}
-    ipt -t mangle -X QOS_MARK_${IFACE}
     $TC qdisc del dev $IFACE ingress
     $TC qdisc del dev $IFACE root
     $TC qdisc del dev $DEV root
@@ -75,6 +69,15 @@ sc() {
     $TC filter add dev $1 protocol ip parent $2 prio $prio u32 match ip sport $3 0xffff classid $4
     prio=$(($prio + 1))
     $TC filter add dev $1 protocol ipv6 parent $2 prio $prio u32 match ip sport $3 0xffff classid $4
+    prio=$(($prio + 1))
+
+}
+
+dc() {
+
+    $TC filter add dev $1 protocol ip parent $2 prio $prio u32 match ip dport $3 0xffff classid $4
+    prio=$(($prio + 1))
+    $TC filter add dev $1 protocol ipv6 parent $2 prio $prio u32 match ip dport $3 0xffff classid $4
     prio=$(($prio + 1))
 
 }
@@ -162,31 +165,6 @@ diffserv() {
 
 }
 
-ipt_setup() {
-
-    ipt -t mangle -N QOS_MARK_${IFACE}
-
-    ipt -t mangle -A QOS_MARK_${IFACE} -p udp -m multiport \
-    --ports 20,21,22,25,53,80,110,123,443,465,993,995 -j DSCP --set-dscp-class AF42
-
-    ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m multiport \
-    --ports 20,21,22,25,53,80,110,123,443,465,993,995 -j DSCP --set-dscp-class AF42
-
-    ipt -t mangle -A QOS_MARK_${IFACE} -p tcp -m dscp --dscp-class AF42 \
-    -m connbytes --connbytes-dir both --connbytes-mode bytes \
-    --connbytes 200000000: -j DSCP --set-dscp-class AF32
-
-    ipt -t mangle -A QOS_MARK_${IFACE} -p icmp -j DSCP --set-dscp-class CS6
-
-    ipt -t mangle -A POSTROUTING -o $IFACE -m dscp --dscp-class CS0 \
-    -g QOS_MARK_${IFACE}
-
-    ipt -t mangle -A OUTPUT -p udp -m multiport --ports 53,123 -j DSCP --set-dscp-class AF42
-    ipt -t mangle -A OUTPUT -p tcp -m multiport --ports 53,123 -j DSCP --set-dscp-class AF42
-    ipt -t mangle -A OUTPUT -p icmp -j DSCP --set-dscp-class CS6
-
-}
-
 egress() {
 
     CEIL=$UPLINK
@@ -210,8 +188,28 @@ egress() {
 
     $TC qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 500 \
     $NOECN `get_quantum 375` `get_flows $BULK`
+    
+    prio=1
+    
+    dc $IFACE 1:0 20 1:11
+    dc $IFACE 1:0 21 1:11
+    dc $IFACE 1:0 22 1:11
+    dc $IFACE 1:0 25 1:11
+    dc $IFACE 1:0 53 1:11
+    dc $IFACE 1:0 80 1:11
+    dc $IFACE 1:0 110 1:11
+    dc $IFACE 1:0 123 1:11
+    dc $IFACE 1:0 443 1:11
+    dc $IFACE 1:0 465 1:11
+    dc $IFACE 1:0 993 1:11
+    dc $IFACE 1:0 995 1:11
 
-    diffserv $IFACE 1
+    $TC filter add dev $IFACE protocol ip parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
+    prio=$(($prio + 1))
+    $TC filter add dev $IFACE protocol ipv6 parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
+    prio=$(($prio + 1))
+
+    diffserv $IFACE $prio
 
 }
 
@@ -274,6 +272,5 @@ ingress() {
 qdisc_variants
 do_modules
 aqm_stop
-ipt_setup
 egress
 ingress
