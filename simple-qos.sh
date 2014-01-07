@@ -128,11 +128,18 @@ diffserv() {
 
     interface=$1
     prio=$2
+    
+    $TC filter add dev $interface protocol ip parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
+    prio=$(($prio + 1))
+    
+    $TC filter add dev $interface protocol ipv6 parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
+    prio=$(($prio + 1))
 
-    $TC filter add dev $interface parent 1:0 protocol all prio 999 u32 \
-            match ip protocol 0 0x00 classid 1:12
+    $TC filter add dev $interface parent 1:0 protocol arp prio $prio handle 1 fw classid 1:11
+    prio=$(($prio + 1))
 
-    fc 1:0 0x00 1:12 # DF/CS0
+    $TC filter add dev $interface parent 1:0 protocol all prio 999 u32 match ip protocol 0 0x00 classid 1:12
+
     fc 1:0 0x30 1:12 # AF12
     fc 1:0 0x90 1:11 # AF42
     fc 1:0 0xc0 1:11 # CS6
@@ -157,11 +164,6 @@ diffserv() {
     fc 1:0 0x78 1:12 # AF33
     fc 1:0 0x88 1:11 # AF41
     fc 1:0 0x98 1:11 # AF43
-
-    $TC filter add dev $interface parent 1:0 protocol arp \
-    prio $prio handle 1 fw classid 1:11
-
-    prio=$(($prio + 1))
 
 }
 
@@ -189,7 +191,7 @@ egress() {
     $TC qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 500 \
     $NOECN `get_quantum 375` `get_flows $BULK`
     
-    prio=1
+    diffserv $IFACE 1
     
     dc $IFACE 1:0 20 1:11
     dc $IFACE 1:0 21 1:11
@@ -203,13 +205,6 @@ egress() {
     dc $IFACE 1:0 465 1:11
     dc $IFACE 1:0 993 1:11
     dc $IFACE 1:0 995 1:11
-
-    $TC filter add dev $IFACE protocol ip parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
-    prio=$(($prio + 1))
-    $TC filter add dev $IFACE protocol ipv6 parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
-    prio=$(($prio + 1))
-
-    diffserv $IFACE $prio
 
 }
 
@@ -240,7 +235,7 @@ ingress() {
     $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 500 \
     $ECN `get_quantum 375` `get_flows $BULK`
 
-    prio=1
+    diffserv $DEV 1
     
     sc $DEV 1:0 20 1:11
     sc $DEV 1:0 21 1:11
@@ -254,13 +249,6 @@ ingress() {
     sc $DEV 1:0 465 1:11
     sc $DEV 1:0 993 1:11
     sc $DEV 1:0 995 1:11
-
-    $TC filter add dev $DEV protocol ip parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
-    prio=$(($prio + 1))
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
-    prio=$(($prio + 1))
-            
-    diffserv $DEV $prio
 
     ifconfig $DEV up
 
