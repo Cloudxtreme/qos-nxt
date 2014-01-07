@@ -50,6 +50,8 @@ do_modules() {
 aqm_stop() {
 
     ipt -t mangle -D OUTPUT -p udp -m multiport --ports 53,123 -j DSCP --set-dscp-class AF42
+    ipt -t mangle -D OUTPUT -p tcp -m multiport --ports 53,123 -j DSCP --set-dscp-class AF42
+    ipt -t mangle -D OUTPUT -p icmp -j DSCP --set-dscp-class CS6
     ipt -t mangle -D POSTROUTING -o $IFACE -m dscp --dscp-class CS0 -g QOS_MARK_${IFACE}
     ipt -t mangle -F QOS_MARK_${IFACE}
     ipt -t mangle -X QOS_MARK_${IFACE}
@@ -113,7 +115,7 @@ qdisc_variants() {
 diffserv() {
 
     interface=$1
-    prio=1
+    prio=$2
 
     $TC filter add dev $interface parent 1:0 protocol all prio 999 u32 \
             match ip protocol 0 0x00 classid 1:12
@@ -171,6 +173,8 @@ ipt_setup() {
     -g QOS_MARK_${IFACE}
 
     ipt -t mangle -A OUTPUT -p udp -m multiport --ports 53,123 -j DSCP --set-dscp-class AF42
+    ipt -t mangle -A OUTPUT -p tcp -m multiport --ports 53,123 -j DSCP --set-dscp-class AF42
+    ipt -t mangle -A OUTPUT -p icmp -j DSCP --set-dscp-class CS6
 
 }
 
@@ -198,7 +202,7 @@ egress() {
     $TC qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 500 \
     $NOECN `get_quantum 375` `get_flows $BULK`
 
-    diffserv $IFACE
+    diffserv $IFACE 1
 
 }
 
@@ -255,16 +259,14 @@ ingress() {
     $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 23 u32 match ip sport 993 0xffff classid 1:11
     $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 24 u32 match ip sport 995 0xffff classid 1:11
 
-    $TC filter add dev $DEV protocol arp parent 1:0 prio 25 handle 1 fw classid 1:11
-    $TC filter add dev $DEV protocol ip parent 1:0 prio 26 u32 match ip protocol 1 0xff classid 1:11
-    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 27 u32 match ip protocol 1 0xff classid 1:11
-
-    $TC filter add dev $DEV parent 1:0 protocol all prio 999 u32 \
-            match ip protocol 0 0x00 classid 1:12
+    $TC filter add dev $DEV protocol ip parent 1:0 prio 25 u32 match ip protocol 1 0xff classid 1:11
+    $TC filter add dev $DEV protocol ipv6 parent 1:0 prio 26 u32 match ip protocol 1 0xff classid 1:11
+            
+    diffserv $DEV 27
 
     ifconfig $DEV up
 
-    $TC filter add dev $IFACE parent ffff: protocol all prio 998 u32 \
+    $TC filter add dev $IFACE parent ffff: protocol all prio 1 u32 \
     match u32 0 0 flowid 1:1 action mirred egress redirect dev $DEV
 
 }
