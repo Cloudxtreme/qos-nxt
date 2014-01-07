@@ -222,7 +222,7 @@ ingress() {
     $TC class add dev $DEV parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit \
     ul rate ${CEIL}kbit
 
-    $TC class add dev $IFACE parent 1:1 classid 1:11 hfsc rt rate ${MIN_EXPRESS}kbit \
+    $TC class add dev $DEV parent 1:1 classid 1:11 hfsc rt rate ${MIN_EXPRESS}kbit \
     ls rate ${EXPRESS}kbit
 
     $TC class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
