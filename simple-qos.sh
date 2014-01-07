@@ -39,8 +39,6 @@ do_modules() {
     insmod act_mirred
     insmod cls_fw
     insmod sch_hfsc
-    insmod ipt_multiport
-    insmod ipt_dscp
     insmod ifb
     insmod cls_u32
     insmod em_u32
@@ -135,10 +133,10 @@ diffserv() {
     $TC filter add dev $interface protocol ipv6 parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
     prio=$(($prio + 1))
 
-    $TC filter add dev $interface parent 1:0 protocol arp prio $prio handle 1 fw classid 1:11
+    $TC filter add dev $interface protocol arp parent 1:0 prio $prio handle 1 fw classid 1:11
     prio=$(($prio + 1))
 
-    $TC filter add dev $interface parent 1:0 protocol all prio 999 u32 match ip protocol 0 0x00 classid 1:12
+    $TC filter add dev $interface protocol all parent 1:0 prio 999 u32 match ip protocol 0 0x00 classid 1:12
 
     fc 1:0 0x30 1:12 # AF12
     fc 1:0 0x90 1:11 # AF42
