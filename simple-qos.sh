@@ -36,11 +36,11 @@ do_modules() {
 
     insmod sch_${QDISC}
     insmod sch_ingress
-    insmod act_mirred
+    insmod sch_htb
     insmod cls_fw
-    insmod sch_hfsc
-    insmod ifb
     insmod cls_u32
+    insmod act_mirred
+    insmod ifb
     insmod em_u32
 
 }
@@ -126,10 +126,10 @@ diffserv() {
 
     interface=$1
     prio=$2
-    
+
     $TC filter add dev $interface protocol ip parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
     prio=$(($prio + 1))
-    
+
     $TC filter add dev $interface protocol ipv6 parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
     prio=$(($prio + 1))
 
@@ -169,28 +169,25 @@ egress() {
 
     CEIL=$UPLINK
     EXPRESS=`expr $CEIL \* 80 / 100`
-    MIN_EXPRESS=`expr $CEIL \* 60 / 100`
     BULK=`expr $CEIL \* 20 / 100`
 
     $TC qdisc del dev $IFACE root 2> /dev/null
-    $TC qdisc add dev $IFACE root handle 1: hfsc
+    $TC qdisc add dev $IFACE root handle 1: htb
 
-    $TC class add dev $IFACE parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit \
-    ul rate ${CEIL}kbit
+    $TC class add dev $IFACE parent 1: classid 1:1 htb rate ${CEIL}kbit ceil ${CEIL}kbit
 
-    $TC class add dev $IFACE parent 1:1 classid 1:11 hfsc rt rate ${MIN_EXPRESS}kbit \
-    ls rate ${EXPRESS}kbit
+    $TC class add dev $IFACE parent 1:1 classid 1:11 htb rate ${EXPRESS}kbit ceil ${CEIL}kbit burst 800kbit
 
-    $TC class add dev $IFACE parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
+    $TC class add dev $IFACE parent 1:1 classid 1:12 htb rate ${BULK}kbit ceil ${CEIL}kbit
 
     $TC qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 500 \
     $NOECN `get_quantum 375` `get_flows $EXPRESS`
 
     $TC qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 500 \
     $NOECN `get_quantum 375` `get_flows $BULK`
-    
+
     diffserv $IFACE 1
-    
+
     dc $IFACE 1:0 20 1:11
     dc $IFACE 1:0 21 1:11
     dc $IFACE 1:0 22 1:11
@@ -210,22 +207,19 @@ ingress() {
 
     CEIL=$DOWNLINK
     EXPRESS=`expr $CEIL \* 90 / 100`
-    MIN_EXPRESS=`expr $CEIL \* 60 / 100`
     BULK=`expr $CEIL \* 10 / 100`
 
     $TC qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
     $TC qdisc add dev $IFACE handle ffff: ingress
 
     $TC qdisc del dev $DEV root 2> /dev/null
-    $TC qdisc add dev $DEV root handle 1: hfsc
+    $TC qdisc add dev $DEV root handle 1: htb
 
-    $TC class add dev $DEV parent 1: classid 1:1 hfsc sc rate ${CEIL}kbit \
-    ul rate ${CEIL}kbit
+    $TC class add dev $DEV parent 1: classid 1:1 htb rate ${CEIL}kbit ceil ${CEIL}kbit
 
-    $TC class add dev $DEV parent 1:1 classid 1:11 hfsc rt rate ${MIN_EXPRESS}kbit \
-    ls rate ${EXPRESS}kbit
+    $TC class add dev $DEV parent 1:1 classid 1:11 htb rate ${EXPRESS}kbit ceil ${CEIL}kbit
 
-    $TC class add dev $DEV parent 1:1 classid 1:12 hfsc sc rate ${BULK}kbit
+    $TC class add dev $DEV parent 1:1 classid 1:12 htb rate ${BULK}kbit ceil ${CEIL}kbit
 
     $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 500 \
     $ECN `get_quantum 375` `get_flows $EXPRESS`
@@ -234,7 +228,7 @@ ingress() {
     $ECN `get_quantum 375` `get_flows $BULK`
 
     diffserv $DEV 1
-    
+
     sc $DEV 1:0 20 1:11
     sc $DEV 1:0 21 1:11
     sc $DEV 1:0 22 1:11
