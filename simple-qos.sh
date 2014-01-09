@@ -2,6 +2,25 @@
 
 UPLINK=400 #kbps
 DOWNLINK=1700 #kbps
+LIMIT=500 #packets
+QUANTUM=375 #bytes
+
+#LINK LAYER ADAPTATION
+LINKLAYER="atm" #adsl, ethernet, atm
+#PPPoA + VC/Mux: -4 atm
+#PPPoA + VC/LLC: 4 atm
+#PPPoE + VC/Mux: 20 atm
+#PPPoE + VC/LLC: 28 atm
+OVERHEAD_EGRESS=28
+#PPPoA + VC/Mux: 10 atm
+#PPPoA + VC/LLC: 18 atm
+#PPPoE + VC/Mux: 34 atm
+#PPPoE + VC/LLC: 42 atm
+OVERHEAD_INGRESS=42
+
+STAB_MTU=2047
+STAB_MPU=0
+STAB_TSIZE=512
 
 IFACE=pppoe-wan
 DEV=ifb0
@@ -122,6 +141,23 @@ qdisc_variants() {
 
 }
 
+get_stab_string_e() {
+
+    STABSTRING=""
+    STABSTRING="stab mtu ${STAB_MTU} tsize ${STAB_TSIZE} mpu ${STAB_MPU} overhead ${OVERHEAD_EGRESS} linklayer ${LINKLAYER}"
+    echo ${STABSTRING}
+
+}
+
+get_stab_string_i() {
+
+    STABSTRING=""
+    STABSTRING="stab mtu ${STAB_MTU} tsize ${STAB_TSIZE} mpu ${STAB_MPU} overhead ${OVERHEAD_INGRESS} linklayer ${LINKLAYER}"
+    echo ${STABSTRING}
+
+}
+
+
 diffserv() {
 
     interface=$1
@@ -170,21 +206,22 @@ egress() {
     CEIL=$UPLINK
     EXPRESS=`expr $CEIL \* 60 / 100`
     BULK=`expr $CEIL \* 40 / 100`
+    LQ=`get_quantum $QUANTUM`
 
     $TC qdisc del dev $IFACE root 2> /dev/null
-    $TC qdisc add dev $IFACE root handle 1: htb
+    $TC qdisc add dev $IFACE root handle 1: `get_stab_string_e` htb default 12
 
-    $TC class add dev $IFACE parent 1: classid 1:1 htb rate ${CEIL}kbit ceil ${CEIL}kbit
+    $TC class add dev $IFACE parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit ceil ${CEIL}kbit
 
-    $TC class add dev $IFACE parent 1:1 classid 1:11 htb rate ${EXPRESS}kbit ceil ${CEIL}kbit burst 400kbit
+    $TC class add dev $IFACE parent 1:1 classid 1:11 htb $LQ rate ${EXPRESS}kbit ceil ${CEIL}kbit burst 400kbit prio 1
 
-    $TC class add dev $IFACE parent 1:1 classid 1:12 htb rate ${BULK}kbit ceil ${CEIL}kbit
+    $TC class add dev $IFACE parent 1:1 classid 1:12 htb $LQ rate ${BULK}kbit ceil ${CEIL}kbit prio 2
 
-    $TC qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit 500 \
-    $NOECN `get_quantum 375` `get_flows $EXPRESS`
+    $TC qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit $LIMIT \
+    $NOECN `get_quantum $QUANTUM` `get_flows $EXPRESS`
 
-    $TC qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit 500 \
-    $NOECN `get_quantum 375` `get_flows $BULK`
+    $TC qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit $LIMIT \
+    $NOECN `get_quantum $QUANTUM` `get_flows $BULK`
 
     diffserv $IFACE 1
 
@@ -208,24 +245,25 @@ ingress() {
     CEIL=$DOWNLINK
     EXPRESS=`expr $CEIL \* 80 / 100`
     BULK=`expr $CEIL \* 20 / 100`
+    LQ=`get_quantum $QUANTUM`
 
     $TC qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
     $TC qdisc add dev $IFACE handle ffff: ingress
 
     $TC qdisc del dev $DEV root 2> /dev/null
-    $TC qdisc add dev $DEV root handle 1: htb
+    $TC qdisc add dev $DEV root handle 1: `get_stab_string_i` htb default 12
 
-    $TC class add dev $DEV parent 1: classid 1:1 htb rate ${CEIL}kbit ceil ${CEIL}kbit
+    $TC class add dev $DEV parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit ceil ${CEIL}kbit
 
-    $TC class add dev $DEV parent 1:1 classid 1:11 htb rate ${EXPRESS}kbit ceil ${CEIL}kbit
+    $TC class add dev $DEV parent 1:1 classid 1:11 htb $LQ rate ${EXPRESS}kbit ceil ${CEIL}kbit prio 1
 
-    $TC class add dev $DEV parent 1:1 classid 1:12 htb rate ${BULK}kbit ceil ${CEIL}kbit
+    $TC class add dev $DEV parent 1:1 classid 1:12 htb $LQ rate ${BULK}kbit ceil ${CEIL}kbit prio 2
 
-    $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit 500 \
-    $ECN `get_quantum 375` `get_flows $EXPRESS`
+    $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit $LIMIT \
+    $ECN `get_quantum $QUANTUM` `get_flows $EXPRESS`
 
-    $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit 500 \
-    $ECN `get_quantum 375` `get_flows $BULK`
+    $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit $LIMIT \
+    $ECN `get_quantum $QUANTUM` `get_flows $BULK`
 
     diffserv $DEV 1
 
