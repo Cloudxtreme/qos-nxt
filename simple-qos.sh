@@ -141,7 +141,7 @@ diffserv() {
     fc 1:0 0x30 1:12 # AF12
     fc 1:0 0x90 1:11 # AF42
     fc 1:0 0xc0 1:11 # CS6
-    fc 1:0 0x70 1:12 # AF32
+    fc 1:0 0x70 1:11 # AF32
     fc 1:0 0x50 1:12 # AF22
     fc 1:0 0x02 1:12 # COS
     fc 1:0 0xb8 1:11 # EF
@@ -150,7 +150,7 @@ diffserv() {
     fc 1:0 0x04 1:12 # REL
     fc 1:0 0x20 1:12 # CS1
     fc 1:0 0x40 1:12 # CS2
-    fc 1:0 0x60 1:12 # CS3
+    fc 1:0 0x60 1:11 # CS3
     fc 1:0 0x80 1:11 # CS4
     fc 1:0 0xa0 1:11 # CS5
     fc 1:0 0xe0 1:11 # CS7
@@ -158,8 +158,8 @@ diffserv() {
     fc 1:0 0x38 1:12 # AF13
     fc 1:0 0x48 1:12 # AF21
     fc 1:0 0x58 1:12 # AF23
-    fc 1:0 0x68 1:12 # AF31
-    fc 1:0 0x78 1:12 # AF33
+    fc 1:0 0x68 1:11 # AF31
+    fc 1:0 0x78 1:11 # AF33
     fc 1:0 0x88 1:11 # AF41
     fc 1:0 0x98 1:11 # AF43
 
@@ -168,15 +168,15 @@ diffserv() {
 egress() {
 
     CEIL=$UPLINK
-    EXPRESS=`expr $CEIL \* 80 / 100`
-    BULK=`expr $CEIL \* 20 / 100`
+    EXPRESS=`expr $CEIL \* 60 / 100`
+    BULK=`expr $CEIL \* 40 / 100`
 
     $TC qdisc del dev $IFACE root 2> /dev/null
     $TC qdisc add dev $IFACE root handle 1: htb
 
     $TC class add dev $IFACE parent 1: classid 1:1 htb rate ${CEIL}kbit ceil ${CEIL}kbit
 
-    $TC class add dev $IFACE parent 1:1 classid 1:11 htb rate ${EXPRESS}kbit ceil ${CEIL}kbit burst 800kbit
+    $TC class add dev $IFACE parent 1:1 classid 1:11 htb rate ${EXPRESS}kbit ceil ${CEIL}kbit burst 400kbit
 
     $TC class add dev $IFACE parent 1:1 classid 1:12 htb rate ${BULK}kbit ceil ${CEIL}kbit
 
@@ -206,8 +206,8 @@ egress() {
 ingress() {
 
     CEIL=$DOWNLINK
-    EXPRESS=`expr $CEIL \* 90 / 100`
-    BULK=`expr $CEIL \* 10 / 100`
+    EXPRESS=`expr $CEIL \* 80 / 100`
+    BULK=`expr $CEIL \* 20 / 100`
 
     $TC qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
     $TC qdisc add dev $IFACE handle ffff: ingress
