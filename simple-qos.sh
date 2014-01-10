@@ -165,7 +165,6 @@ get_stab_string_i() {
 
 }
 
-
 diffserv() {
 
     interface=$1
