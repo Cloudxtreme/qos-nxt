@@ -74,27 +74,33 @@ aqm_stop() {
 
 fc() {
 
-    $TC filter add dev $interface protocol ip parent $1 prio $prio u32 match ip tos $2 0xfc classid $3
+    $TC filter add dev $1 protocol ip parent $2 prio $prio \
+    u32 match ip tos $3 0xfc classid $4
     prio=$(($prio + 1))
-    $TC filter add dev $interface protocol ipv6 parent $1 prio $prio u32 match ip6 priority $2 0xfc classid $3
+    $TC filter add dev $1 protocol ipv6 parent $2 prio $prio \
+    u32 match ip6 priority $3 0xfc classid $4
     prio=$(($prio + 1))
 
 }
 
 sc() {
 
-    $TC filter add dev $1 protocol ip parent $2 prio $prio u32 match ip sport $3 0xffff classid $4
+    $TC filter add dev $1 protocol ip parent $2 prio $prio \
+    u32 match ip sport $3 0xffff classid $4
     prio=$(($prio + 1))
-    $TC filter add dev $1 protocol ipv6 parent $2 prio $prio u32 match ip sport $3 0xffff classid $4
+    $TC filter add dev $1 protocol ipv6 parent $2 prio $prio \
+    u32 match ip sport $3 0xffff classid $4
     prio=$(($prio + 1))
 
 }
 
 dc() {
 
-    $TC filter add dev $1 protocol ip parent $2 prio $prio u32 match ip dport $3 0xffff classid $4
+    $TC filter add dev $1 protocol ip parent $2 prio $prio \
+    u32 match ip dport $3 0xffff classid $4
     prio=$(($prio + 1))
-    $TC filter add dev $1 protocol ipv6 parent $2 prio $prio u32 match ip dport $3 0xffff classid $4
+    $TC filter add dev $1 protocol ipv6 parent $2 prio $prio \
+    u32 match ip dport $3 0xffff classid $4
     prio=$(($prio + 1))
 
 }
@@ -144,7 +150,8 @@ qdisc_variants() {
 get_stab_string_e() {
 
     STABSTRING=""
-    STABSTRING="stab mtu ${STAB_MTU} tsize ${STAB_TSIZE} mpu ${STAB_MPU} overhead ${OVERHEAD_EGRESS} linklayer ${LINKLAYER}"
+    STABSTRING="stab mtu ${STAB_MTU} tsize ${STAB_TSIZE} mpu ${STAB_MPU}
+    overhead ${OVERHEAD_EGRESS} linklayer ${LINKLAYER}"
     echo ${STABSTRING}
 
 }
@@ -152,7 +159,8 @@ get_stab_string_e() {
 get_stab_string_i() {
 
     STABSTRING=""
-    STABSTRING="stab mtu ${STAB_MTU} tsize ${STAB_TSIZE} mpu ${STAB_MPU} overhead ${OVERHEAD_INGRESS} linklayer ${LINKLAYER}"
+    STABSTRING="stab mtu ${STAB_MTU} tsize ${STAB_TSIZE} mpu ${STAB_MPU}
+    overhead ${OVERHEAD_INGRESS} linklayer ${LINKLAYER}"
     echo ${STABSTRING}
 
 }
@@ -163,41 +171,30 @@ diffserv() {
     interface=$1
     prio=$2
 
-    $TC filter add dev $interface protocol ip parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
-    prio=$(($prio + 1))
+    #fc $interface 1:0 0x30 1:12 # AF12
+    fc $interface 1:0 0x90 1:11 # AF42
+    fc $interface 1:0 0xc0 1:11 # CS6
+    fc $interface 1:0 0x70 1:11 # AF32
+    #fc $interface 1:0 0x50 1:12 # AF22
+    fc $interface 1:0 0xb8 1:11 # EF
+    fc $interface 1:0 0x10 1:11 # IMM
+    #fc $interface 1:0 0x20 1:12 # CS1
+    #fc $interface 1:0 0x40 1:12 # CS2
+    fc $interface 1:0 0x60 1:11 # CS3
+    fc $interface 1:0 0x80 1:11 # CS4
+    fc $interface 1:0 0xa0 1:11 # CS5
+    fc $interface 1:0 0xe0 1:11 # CS7
+    #fc $interface 1:0 0x28 1:12 # AF11
+    #fc $interface 1:0 0x38 1:12 # AF13
+    #fc $interface 1:0 0x48 1:12 # AF21
+    #fc $interface 1:0 0x58 1:12 # AF23
+    fc $interface 1:0 0x68 1:11 # AF31
+    fc $interface 1:0 0x78 1:11 # AF33
+    fc $interface 1:0 0x88 1:11 # AF41
+    fc $interface 1:0 0x98 1:11 # AF43
 
-    $TC filter add dev $interface protocol ipv6 parent 1:0 prio $prio u32 match ip protocol 1 0xff classid 1:11
-    prio=$(($prio + 1))
-
-    $TC filter add dev $interface protocol arp parent 1:0 prio $prio handle 1 fw classid 1:11
-    prio=$(($prio + 1))
-
-    $TC filter add dev $interface protocol all parent 1:0 prio 999 u32 match ip protocol 0 0x00 classid 1:12
-
-    fc 1:0 0x30 1:12 # AF12
-    fc 1:0 0x90 1:11 # AF42
-    fc 1:0 0xc0 1:11 # CS6
-    fc 1:0 0x70 1:11 # AF32
-    fc 1:0 0x50 1:12 # AF22
-    fc 1:0 0x02 1:12 # COS
-    fc 1:0 0xb8 1:11 # EF
-    fc 1:0 0x10 1:11 # IMM
-    fc 1:0 0x08 1:12 # THRO
-    fc 1:0 0x04 1:12 # REL
-    fc 1:0 0x20 1:12 # CS1
-    fc 1:0 0x40 1:12 # CS2
-    fc 1:0 0x60 1:11 # CS3
-    fc 1:0 0x80 1:11 # CS4
-    fc 1:0 0xa0 1:11 # CS5
-    fc 1:0 0xe0 1:11 # CS7
-    fc 1:0 0x28 1:12 # AF11
-    fc 1:0 0x38 1:12 # AF13
-    fc 1:0 0x48 1:12 # AF21
-    fc 1:0 0x58 1:12 # AF23
-    fc 1:0 0x68 1:11 # AF31
-    fc 1:0 0x78 1:11 # AF33
-    fc 1:0 0x88 1:11 # AF41
-    fc 1:0 0x98 1:11 # AF43
+    $TC filter add dev $interface protocol all parent 1:0 prio 999 \
+    u32 match ip protocol 0 0x00 classid 1:12
 
 }
 
@@ -211,11 +208,14 @@ egress() {
     $TC qdisc del dev $IFACE root 2> /dev/null
     $TC qdisc add dev $IFACE root handle 1: `get_stab_string_e` htb default 12
 
-    $TC class add dev $IFACE parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit ceil ${CEIL}kbit
+    $TC class add dev $IFACE parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit \
+    ceil ${CEIL}kbit
 
-    $TC class add dev $IFACE parent 1:1 classid 1:11 htb $LQ rate ${EXPRESS}kbit ceil ${CEIL}kbit burst 400kbit prio 1
+    $TC class add dev $IFACE parent 1:1 classid 1:11 htb $LQ rate ${EXPRESS}kbit \
+    ceil ${CEIL}kbit burst 400kbit prio 1
 
-    $TC class add dev $IFACE parent 1:1 classid 1:12 htb $LQ rate ${BULK}kbit ceil ${CEIL}kbit prio 2
+    $TC class add dev $IFACE parent 1:1 classid 1:12 htb $LQ rate ${BULK}kbit \
+    ceil ${CEIL}kbit prio 2
 
     $TC qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit $LIMIT \
     $NOECN `get_quantum $QUANTUM` `get_flows $EXPRESS`
@@ -237,6 +237,7 @@ egress() {
     dc $IFACE 1:0 465 1:11
     dc $IFACE 1:0 993 1:11
     dc $IFACE 1:0 995 1:11
+    fc $IFACE 1:0 0x00 1:12 # BE
 
 }
 
@@ -253,11 +254,14 @@ ingress() {
     $TC qdisc del dev $DEV root 2> /dev/null
     $TC qdisc add dev $DEV root handle 1: `get_stab_string_i` htb default 12
 
-    $TC class add dev $DEV parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit ceil ${CEIL}kbit
+    $TC class add dev $DEV parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit \
+    ceil ${CEIL}kbit
 
-    $TC class add dev $DEV parent 1:1 classid 1:11 htb $LQ rate ${EXPRESS}kbit ceil ${CEIL}kbit prio 1
+    $TC class add dev $DEV parent 1:1 classid 1:11 htb $LQ rate ${EXPRESS}kbit \
+    ceil ${CEIL}kbit prio 1
 
-    $TC class add dev $DEV parent 1:1 classid 1:12 htb $LQ rate ${BULK}kbit ceil ${CEIL}kbit prio 2
+    $TC class add dev $DEV parent 1:1 classid 1:12 htb $LQ rate ${BULK}kbit \
+    ceil ${CEIL}kbit prio 2
 
     $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit $LIMIT \
     $ECN `get_quantum $QUANTUM` `get_flows $EXPRESS`
@@ -279,6 +283,7 @@ ingress() {
     sc $DEV 1:0 465 1:11
     sc $DEV 1:0 993 1:11
     sc $DEV 1:0 995 1:11
+    fc $DEV 1:0 0x00 1:12 # BE
 
     ifconfig $DEV up
 
