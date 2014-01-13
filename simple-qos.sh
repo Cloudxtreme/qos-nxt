@@ -170,23 +170,23 @@ diffserv() {
     interface=$1
     prio=$2
 
-    #fc $interface 1:0 0x30 1:12 # AF12
+    fc $interface 1:0 0x30 1:12 # AF12
     fc $interface 1:0 0x90 1:11 # AF42
     fc $interface 1:0 0xc0 1:11 # CS6
     fc $interface 1:0 0x70 1:11 # AF32
-    #fc $interface 1:0 0x50 1:12 # AF22
+    fc $interface 1:0 0x50 1:12 # AF22
     fc $interface 1:0 0xb8 1:11 # EF
     fc $interface 1:0 0x10 1:11 # IMM
-    #fc $interface 1:0 0x20 1:12 # CS1
-    #fc $interface 1:0 0x40 1:12 # CS2
+    fc $interface 1:0 0x20 1:12 # CS1
+    fc $interface 1:0 0x40 1:12 # CS2
     fc $interface 1:0 0x60 1:11 # CS3
     fc $interface 1:0 0x80 1:11 # CS4
     fc $interface 1:0 0xa0 1:11 # CS5
     fc $interface 1:0 0xe0 1:11 # CS7
-    #fc $interface 1:0 0x28 1:12 # AF11
-    #fc $interface 1:0 0x38 1:12 # AF13
-    #fc $interface 1:0 0x48 1:12 # AF21
-    #fc $interface 1:0 0x58 1:12 # AF23
+    fc $interface 1:0 0x28 1:12 # AF11
+    fc $interface 1:0 0x38 1:12 # AF13
+    fc $interface 1:0 0x48 1:12 # AF21
+    fc $interface 1:0 0x58 1:12 # AF23
     fc $interface 1:0 0x68 1:11 # AF31
     fc $interface 1:0 0x78 1:11 # AF33
     fc $interface 1:0 0x88 1:11 # AF41
