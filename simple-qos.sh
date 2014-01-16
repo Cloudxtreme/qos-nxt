@@ -200,8 +200,8 @@ diffserv() {
 egress() {
 
     CEIL=$UPLINK
-    EXPRESS=`expr $CEIL \* 60 / 100`
-    BULK=`expr $CEIL \* 40 / 100`
+    EXPRESS=`expr $CEIL \* 80 / 100`
+    BULK=`expr $CEIL \* 20 / 100`
     LQ=`get_quantum $QUANTUM`
 
     $TC qdisc del dev $IFACE root 2> /dev/null
@@ -211,7 +211,7 @@ egress() {
     ceil ${CEIL}kbit
 
     $TC class add dev $IFACE parent 1:1 classid 1:11 htb $LQ rate ${EXPRESS}kbit \
-    ceil ${CEIL}kbit burst 400kbit prio 1
+    ceil ${CEIL}kbit burst 800kbit prio 1
 
     $TC class add dev $IFACE parent 1:1 classid 1:12 htb $LQ rate ${BULK}kbit \
     ceil ${CEIL}kbit prio 2
