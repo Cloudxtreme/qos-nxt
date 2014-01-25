@@ -1,28 +1,29 @@
 #!/bin/sh
 
-UPLINK=400 #kbps
-DOWNLINK=1700 #kbps
+UPLINK=400 #kbps (setup required)
+DOWNLINK=1700 #kbps (setup required)
 LIMIT=500 #packets
 QUANTUM=375 #bytes
 
 #LINK LAYER ADAPTATION
-LINKLAYER="atm" #adsl, ethernet, atm
+LINKLAYER="atm" #adsl, ethernet, atm (setup required)
 #PPPoA + VC/Mux: -4 atm
 #PPPoA + VC/LLC: 4 atm
 #PPPoE + VC/Mux: 20 atm
 #PPPoE + VC/LLC: 28 atm
-OVERHEAD_EGRESS=28
+OVERHEAD_EGRESS=28 # (setup required)
 #PPPoA + VC/Mux: 10 atm
 #PPPoA + VC/LLC: 18 atm
 #PPPoE + VC/Mux: 34 atm
 #PPPoE + VC/LLC: 42 atm
-OVERHEAD_INGRESS=42
+OVERHEAD_INGRESS=42 # (setup required)
 
 STAB_MTU=2047
 STAB_MPU=0
 STAB_TSIZE=512
 
-IFACE=pppoe-wan
+#INTERFACE CONFIGURATION
+IFACE=pppoe-wan # (setup required)
 DEV=ifb0
 
 QDISC=fq_codel

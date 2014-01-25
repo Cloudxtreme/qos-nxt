@@ -1,5 +1,8 @@
 # /etc/rc.local
 
+# The following block configures eth1 which is used for 
+# the internet connection (in this case using pppoe).
+# Values are tuned for up to 50mbps.
 ifconfig eth1 txqueuelen 16
 
 (
@@ -15,12 +18,17 @@ for I in /sys/class/net/eth1/queues/tx-*/byte_queue_limits/limit_max
 	do
 		echo 1514 > $I
 	done
-
+    
+# End of eth1 block. Start traffic shaping on the interface.
 /etc/simple-qos.sh
 
+# Debloat for interfaces as:
+# arg1: Link Speed in mbps. 
+# arg2: transmit queue length in packets.
+# arg3: byte queue length in bytes.
+# Remove line as needed based on your OpenWRT configuration.
 /etc/debloat.sh eth0 1000 100 64
 /etc/debloat.sh eth0.1 1000 100 64
-
 /etc/debloat.sh wlan0 75 32 16
 /etc/debloat.sh wlan1 75 32 16
 /etc/debloat.sh wlan0-1 75 32 16
