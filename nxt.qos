@@ -1,0 +1,183 @@
+#!/bin/sh
+
+# QoS Script version for CEROwrt.
+
+. /usr/lib/sqm/functions.sh
+
+fc_nxt() {
+
+    $TC filter add dev $1 protocol ip parent $2 prio $prio \
+    u32 match ip tos $3 0xfc classid $4
+    prio=$(($prio + 1))
+    $TC filter add dev $1 protocol ipv6 parent $2 prio $prio \
+    u32 match ip6 priority $3 0xfc classid $4
+    prio=$(($prio + 1))
+
+}
+
+sc_nxt() {
+
+    $TC filter add dev $1 protocol ip parent $2 prio $prio \
+    u32 match ip sport $3 0xffff classid $4
+    prio=$(($prio + 1))
+    $TC filter add dev $1 protocol ipv6 parent $2 prio $prio \
+    u32 match ip sport $3 0xffff classid $4
+    prio=$(($prio + 1))
+
+}
+
+dc_nxt() {
+
+    $TC filter add dev $1 protocol ip parent $2 prio $prio \
+    u32 match ip dport $3 0xffff classid $4
+    prio=$(($prio + 1))
+    $TC filter add dev $1 protocol ipv6 parent $2 prio $prio \
+    u32 match ip dport $3 0xffff classid $4
+    prio=$(($prio + 1))
+
+}
+
+diffserv_nxt() {
+
+    interface=$1
+    prio=$2
+
+    fc_nxt $interface 1:0 0x30 1:12 # AF12
+    fc_nxt $interface 1:0 0x90 1:11 # AF42
+    fc_nxt $interface 1:0 0xc0 1:11 # CS6
+    fc_nxt $interface 1:0 0x70 1:11 # AF32
+    fc_nxt $interface 1:0 0x50 1:12 # AF22
+    fc_nxt $interface 1:0 0xb8 1:11 # EF
+    fc_nxt $interface 1:0 0x10 1:11 # IMM
+    fc_nxt $interface 1:0 0x20 1:12 # CS1
+    fc_nxt $interface 1:0 0x40 1:12 # CS2
+    fc_nxt $interface 1:0 0x60 1:11 # CS3
+    fc_nxt $interface 1:0 0x80 1:11 # CS4
+    fc_nxt $interface 1:0 0xa0 1:11 # CS5
+    fc_nxt $interface 1:0 0xe0 1:11 # CS7
+    fc_nxt $interface 1:0 0x28 1:12 # AF11
+    fc_nxt $interface 1:0 0x38 1:12 # AF13
+    fc_nxt $interface 1:0 0x48 1:12 # AF21
+    fc_nxt $interface 1:0 0x58 1:12 # AF23
+    fc_nxt $interface 1:0 0x68 1:11 # AF31
+    fc_nxt $interface 1:0 0x78 1:11 # AF33
+    fc_nxt $interface 1:0 0x88 1:11 # AF41
+    fc_nxt $interface 1:0 0x98 1:11 # AF43
+
+    $TC filter add dev $interface protocol all parent 1:0 prio 999 \
+    u32 match ip protocol 0 0x00 classid 1:12
+
+}
+
+egress() {
+
+    CEIL=$UPLINK
+    EXPRESS=`expr $CEIL \* 80 / 100`
+    BULK=`expr $CEIL \* 20 / 100`
+    LQ="quantum `get_mtu $IFACE $CEIL`"
+
+    $TC qdisc del dev $IFACE root 2> /dev/null
+    $TC qdisc add dev $IFACE root handle 1: `get_stab_string` htb default 12
+
+    $TC class add dev $IFACE parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit \
+    ceil ${CEIL}kbit `get_htb_adsll_string`
+
+    $TC class add dev $IFACE parent 1:1 classid 1:11 htb $LQ rate ${EXPRESS}kbit \
+    ceil ${CEIL}kbit burst 800kbit prio 1 `get_htb_adsll_string`
+
+    $TC class add dev $IFACE parent 1:1 classid 1:12 htb $LQ rate ${BULK}kbit \
+    ceil ${CEIL}kbit prio 2 `get_htb_adsll_string`
+
+    $TC qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit $LIMIT \ 
+    `get_ECN ${eECN}` `get_quantum 300` `get_flows ${EXPRESS}` ${eqdisc_opts}
+    $TC qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit $LIMIT \ 
+    `get_ECN ${eECN}` `get_quantum 300` `get_flows ${BULK}` ${eqdisc_opts}
+    
+    diffserv_nxt $IFACE 1
+
+    dc_nxt $IFACE 1:0 20 1:11
+    dc_nxt $IFACE 1:0 21 1:11
+    dc_nxt $IFACE 1:0 22 1:11
+    dc_nxt $IFACE 1:0 25 1:11
+    dc_nxt $IFACE 1:0 53 1:11
+    dc_nxt $IFACE 1:0 80 1:11
+    dc_nxt $IFACE 1:0 110 1:11
+    dc_nxt $IFACE 1:0 123 1:11
+    dc_nxt $IFACE 1:0 443 1:11
+    dc_nxt $IFACE 1:0 465 1:11
+    dc_nxt $IFACE 1:0 993 1:11
+    dc_nxt $IFACE 1:0 995 1:11
+    fc_nxt $IFACE 1:0 0x00 1:12 # BE
+
+}
+
+ingress() {
+
+    CEIL=$DOWNLINK
+    EXPRESS=`expr $CEIL \* 80 / 100`
+    BULK=`expr $CEIL \* 20 / 100`
+    LQ="quantum `get_mtu $IFACE $CEIL`"
+
+    $TC qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
+    $TC qdisc add dev $IFACE handle ffff: ingress
+
+    $TC qdisc del dev $DEV root 2> /dev/null
+    $TC qdisc add dev $DEV root handle 1: `get_stab_string` htb default 12
+
+    $TC class add dev $DEV parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit \
+    ceil ${CEIL}kbit `get_htb_adsll_string`
+
+    $TC class add dev $DEV parent 1:1 classid 1:11 htb $LQ rate ${EXPRESS}kbit \
+    ceil ${CEIL}kbit prio 1 `get_htb_adsll_string`
+
+    $TC class add dev $DEV parent 1:1 classid 1:12 htb $LQ rate ${BULK}kbit \
+    ceil ${CEIL}kbit prio 2 `get_htb_adsll_string`
+
+
+    $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit $LIMIT \ 
+    `get_ECN ${iECN}` `get_quantum 500` `get_flows ${EXPRESS}` ${iqdisc_opts}
+    $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit $LIMIT \ 
+    `get_ECN ${iECN}` `get_quantum 1500` `get_flows ${BULK}` ${iqdisc_opts}
+
+    diffserv_nxt $DEV 1
+
+    sc_nxt $DEV 1:0 20 1:11
+    sc_nxt $DEV 1:0 21 1:11
+    sc_nxt $DEV 1:0 22 1:11
+    sc_nxt $DEV 1:0 25 1:11
+    sc_nxt $DEV 1:0 53 1:11
+    sc_nxt $DEV 1:0 80 1:11
+    sc_nxt $DEV 1:0 110 1:11
+    sc_nxt $DEV 1:0 123 1:11
+    sc_nxt $DEV 1:0 443 1:11
+    sc_nxt $DEV 1:0 465 1:11
+    sc_nxt $DEV 1:0 993 1:11
+    sc_nxt $DEV 1:0 995 1:11
+    fc_nxt $DEV 1:0 0x00 1:12 # BE
+
+    ifconfig $DEV up
+
+    $TC filter add dev $IFACE parent ffff: protocol all prio 1 u32 \
+    match u32 0 0 flowid 1:1 action mirred egress redirect dev $DEV
+
+}
+
+do_modules
+if [ "$UPLINK" -ne 0 ];
+then
+    egress
+    logger "egress shaping activated"
+else
+    logger "egress shaping deactivated"
+    tc qdisc del dev $IFACE root 2> /dev/null
+fi
+
+if [ "$DOWNLINK" -ne 0 ];
+then
+    ingress
+    logger "ingress shaping activated"
+else
+    logger "ingress shaping deactivated"
+    tc qdisc del dev $DEV root 2> /dev/null
+    tc qdisc del dev $IFACE ingress 2> /dev/null
+fi
