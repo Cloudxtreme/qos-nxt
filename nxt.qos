@@ -92,7 +92,7 @@ egress() {
     `get_ECN ${eECN}` `get_quantum 300` `get_flows ${EXPRESS}` ${eqdisc_opts}
     $TC qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit $LIMIT \
     `get_ECN ${eECN}` `get_quantum 300` `get_flows ${BULK}` ${eqdisc_opts}
-    
+
     diffserv_nxt $IFACE 1
 
     dc_nxt $IFACE 1:0 20 1:11
@@ -133,11 +133,10 @@ ingress() {
     $TC class add dev $DEV parent 1:1 classid 1:12 htb $LQ rate ${BULK}kbit \
     ceil ${CEIL}kbit prio 2 `get_htb_adsll_string`
 
-
     $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit $LIMIT \
-    `get_ECN ${iECN}` `get_quantum 500` `get_flows ${EXPRESS}` ${iqdisc_opts}
+    `get_ECN ${iECN}` `get_quantum 1500` `get_flows ${EXPRESS}` ${iqdisc_opts}
     $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit $LIMIT \
-    `get_ECN ${iECN}` `get_quantum 1500` `get_flows ${BULK}` ${iqdisc_opts}
+    `get_ECN ${iECN}` `get_quantum 300` `get_flows ${BULK}` ${iqdisc_opts}
 
     diffserv_nxt $DEV 1
 
@@ -163,6 +162,7 @@ ingress() {
 }
 
 do_modules
+
 if [ "$UPLINK" -ne 0 ];
 then
     egress
