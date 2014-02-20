@@ -89,9 +89,9 @@ egress() {
     ceil ${CEIL}kbit prio 2 `get_htb_adsll_string`
 
     $TC qdisc add dev $IFACE parent 1:11 handle 110: $QDISC limit $LIMIT \
-    `get_ECN ${eECN}` `get_quantum 300` `get_flows ${EXPRESS}` ${eqdisc_opts}
+    `get_ecn ${EECN}` `get_quantum 300` `get_flows ${EXPRESS}` ${eqdisc_opts}
     $TC qdisc add dev $IFACE parent 1:12 handle 120: $QDISC limit $LIMIT \
-    `get_ECN ${eECN}` `get_quantum 300` `get_flows ${BULK}` ${eqdisc_opts}
+    `get_ecn ${EECN}` `get_quantum 300` `get_flows ${BULK}` ${eqdisc_opts}
 
     diffserv_nxt $IFACE 1
 
@@ -134,9 +134,9 @@ ingress() {
     ceil ${CEIL}kbit prio 2 `get_htb_adsll_string`
 
     $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit $LIMIT \
-    `get_ECN ${iECN}` `get_quantum 1500` `get_flows ${EXPRESS}` ${iqdisc_opts}
+    `get_ecn ${IECN}` `get_quantum 1500` `get_flows ${EXPRESS}` ${iqdisc_opts}
     $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit $LIMIT \
-    `get_ECN ${iECN}` `get_quantum 300` `get_flows ${BULK}` ${iqdisc_opts}
+    `get_ecn ${IECN}` `get_quantum 300` `get_flows ${BULK}` ${iqdisc_opts}
 
     diffserv_nxt $DEV 1
 
