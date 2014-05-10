@@ -15,17 +15,6 @@ fc_nxt() {
 
 }
 
-sc_nxt() {
-
-    $TC filter add dev $1 protocol ip parent $2 prio $prio \
-    u32 match ip sport $3 0xffff classid $4
-    prio=$(($prio + 1))
-    $TC filter add dev $1 protocol ipv6 parent $2 prio $prio \
-    u32 match ip sport $3 0xffff classid $4
-    prio=$(($prio + 1))
-
-}
-
 dc_nxt() {
 
     $TC filter add dev $1 protocol ip parent $2 prio $prio \
@@ -114,8 +103,6 @@ egress() {
 ingress() {
 
     CEIL=$DOWNLINK
-    EXPRESS=`expr $CEIL \* 80 / 100`
-    BULK=`expr $CEIL \* 20 / 100`
     LQ="quantum `get_mtu $IFACE $CEIL`"
 
     $TC qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
@@ -127,32 +114,14 @@ ingress() {
     $TC class add dev $DEV parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit \
     ceil ${CEIL}kbit `get_htb_adsll_string`
 
-    $TC class add dev $DEV parent 1:1 classid 1:11 htb $LQ rate ${EXPRESS}kbit \
+    $TC class add dev $DEV parent 1:1 classid 1:11 htb $LQ rate ${CEIL}kbit \
     ceil ${CEIL}kbit prio 1 `get_htb_adsll_string`
-
-    $TC class add dev $DEV parent 1:1 classid 1:12 htb $LQ rate ${BULK}kbit \
-    ceil ${CEIL}kbit prio 2 `get_htb_adsll_string`
 
     $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC `get_limit $ILIMIT` \
     `get_ecn ${IECN}` `get_quantum 1000` `get_flows ${EXPRESS}` ${IQDISC_OPTS}
-    $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC `get_limit $ILIMIT` \
-    `get_ecn ${IECN}` `get_quantum 1000` `get_flows ${BULK}` ${IQDISC_OPTS}
 
-    diffserv_nxt $DEV 1
-
-    sc_nxt $DEV 1:0 20 1:11
-    sc_nxt $DEV 1:0 21 1:11
-    sc_nxt $DEV 1:0 22 1:11
-    sc_nxt $DEV 1:0 25 1:11
-    sc_nxt $DEV 1:0 53 1:11
-    sc_nxt $DEV 1:0 80 1:11
-    sc_nxt $DEV 1:0 110 1:11
-    sc_nxt $DEV 1:0 123 1:11
-    sc_nxt $DEV 1:0 443 1:11
-    sc_nxt $DEV 1:0 465 1:11
-    sc_nxt $DEV 1:0 993 1:11
-    sc_nxt $DEV 1:0 995 1:11
-    fc_nxt $DEV 1:0 0x00 1:12 # BE
+    $TC filter add dev $DEV protocol all parent 1:0 prio 1 \
+    u32 match ip protocol 0 0x00 classid 1:11
 
     ifconfig $DEV up
 
