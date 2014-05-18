@@ -75,37 +75,37 @@ aqm_stop() {
 
 get_mtu() {
     
-	BW=$2
-	F=`cat /sys/class/net/$1/mtu`
-	if [ -z "$F" ]
-	then
-	F=1500
-	fi
-	if [ $BW -gt 20000 ]
-	then
-		F=$(($F * 2))
-	fi
-	if [ $BW -gt 30000 ]
-	then
-		F=$(($F * 2))
-	fi
-	if [ $BW -gt 40000 ]
-	then
-		F=$(($F * 2))
-	fi
-	if [ $BW -gt 50000 ]
-	then
-		F=$(($F * 2))
-	fi
-	if [ $BW -gt 60000 ]
-	then
-		F=$(($F * 2))
-	fi
-	if [ $BW -gt 80000 ]
-	then
-		F=$(($F * 2))
-	fi
-	echo $F
+    BW=$2
+    F=`cat /sys/class/net/$1/mtu`
+    if [ -z "$F" ]
+    then
+        F=1500
+    fi
+    if [ $BW -gt 20000 ]
+    then
+        F=$(($F * 2))
+    fi
+    if [ $BW -gt 30000 ]
+    then
+        F=$(($F * 2))
+    fi
+    if [ $BW -gt 40000 ]
+    then
+        F=$(($F * 2))
+    fi
+    if [ $BW -gt 50000 ]
+    then
+        F=$(($F * 2))
+    fi
+    if [ $BW -gt 60000 ]
+    then
+        F=$(($F * 2))
+    fi
+    if [ $BW -gt 80000 ]
+    then
+        F=$(($F * 2))
+    fi
+    echo $F
 	
 }
 
