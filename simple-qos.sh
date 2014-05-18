@@ -84,17 +84,6 @@ fc() {
 
 }
 
-sc() {
-
-    $TC filter add dev $1 protocol ip parent $2 prio $prio \
-    u32 match ip sport $3 0xffff classid $4
-    prio=$(($prio + 1))
-    $TC filter add dev $1 protocol ipv6 parent $2 prio $prio \
-    u32 match ip sport $3 0xffff classid $4
-    prio=$(($prio + 1))
-
-}
-
 dc() {
 
     $TC filter add dev $1 protocol ip parent $2 prio $prio \
@@ -244,8 +233,6 @@ egress() {
 ingress() {
 
     CEIL=$DOWNLINK
-    EXPRESS=`expr $CEIL \* 80 / 100`
-    BULK=`expr $CEIL \* 20 / 100`
     LQ=`get_quantum $QUANTUM`
 
     $TC qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
@@ -257,34 +244,15 @@ ingress() {
     $TC class add dev $DEV parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit \
     ceil ${CEIL}kbit
 
-    $TC class add dev $DEV parent 1:1 classid 1:11 htb $LQ rate ${EXPRESS}kbit \
+    $TC class add dev $DEV parent 1:1 classid 1:11 htb $LQ rate ${CEIL}kbit \
     ceil ${CEIL}kbit prio 1
 
-    $TC class add dev $DEV parent 1:1 classid 1:12 htb $LQ rate ${BULK}kbit \
-    ceil ${CEIL}kbit prio 2
-
     $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit $LIMIT \
-    $ECN `get_quantum $QUANTUM` `get_flows $EXPRESS`
+    $ECN `get_quantum $QUANTUM` `get_flows $CEIL`
 
-    $TC qdisc add dev $DEV parent 1:12 handle 120: $QDISC limit $LIMIT \
-    $ECN `get_quantum $QUANTUM` `get_flows $BULK`
-
-    diffserv $DEV 1
-
-    sc $DEV 1:0 20 1:11
-    sc $DEV 1:0 21 1:11
-    sc $DEV 1:0 22 1:11
-    sc $DEV 1:0 25 1:11
-    sc $DEV 1:0 53 1:11
-    sc $DEV 1:0 80 1:11
-    sc $DEV 1:0 110 1:11
-    sc $DEV 1:0 123 1:11
-    sc $DEV 1:0 443 1:11
-    sc $DEV 1:0 465 1:11
-    sc $DEV 1:0 993 1:11
-    sc $DEV 1:0 995 1:11
-    fc $DEV 1:0 0x00 1:12 # BE
-
+    $TC filter add dev $DEV protocol all parent 1:0 prio 1 u32 \
+    match ip protocol 0 0x00 classid 1:11
+    
     ifconfig $DEV up
 
     $TC filter add dev $IFACE parent ffff: protocol all prio 1 u32 \
