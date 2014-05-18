@@ -73,6 +73,42 @@ aqm_stop() {
 
 }
 
+get_mtu() {
+    
+	BW=$2
+	F=`cat /sys/class/net/$1/mtu`
+	if [ -z "$F" ]
+	then
+	F=1500
+	fi
+	if [ $BW -gt 20000 ]
+	then
+		F=$(($F * 2))
+	fi
+	if [ $BW -gt 30000 ]
+	then
+		F=$(($F * 2))
+	fi
+	if [ $BW -gt 40000 ]
+	then
+		F=$(($F * 2))
+	fi
+	if [ $BW -gt 50000 ]
+	then
+		F=$(($F * 2))
+	fi
+	if [ $BW -gt 60000 ]
+	then
+		F=$(($F * 2))
+	fi
+	if [ $BW -gt 80000 ]
+	then
+		F=$(($F * 2))
+	fi
+	echo $F
+	
+}
+
 fc() {
 
     $TC filter add dev $1 protocol ip parent $2 prio $prio \
@@ -192,7 +228,7 @@ egress() {
     CEIL=$UPLINK
     EXPRESS=`expr $CEIL \* 80 / 100`
     BULK=`expr $CEIL \* 20 / 100`
-    LQ=`get_quantum $QUANTUM`
+    LQ="quantum `get_mtu $IFACE $CEIL`"
 
     $TC qdisc del dev $IFACE root 2> /dev/null
     $TC qdisc add dev $IFACE root handle 1: `get_stab_string_e` htb default 12
@@ -233,7 +269,7 @@ egress() {
 ingress() {
 
     CEIL=$DOWNLINK
-    LQ=`get_quantum $QUANTUM`
+    LQ="quantum `get_mtu $IFACE $CEIL`"
 
     $TC qdisc del dev $IFACE handle ffff: ingress 2> /dev/null
     $TC qdisc add dev $IFACE handle ffff: ingress
