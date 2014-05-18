@@ -118,10 +118,10 @@ ingress() {
     ceil ${CEIL}kbit prio 1 `get_htb_adsll_string`
 
     $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC `get_limit $ILIMIT` \
-    `get_ecn ${IECN}` `get_quantum 1000` `get_flows ${EXPRESS}` ${IQDISC_OPTS}
+    `get_ecn ${IECN}` `get_quantum 1000` `get_flows ${CEIL}` ${IQDISC_OPTS}
 
-    $TC filter add dev $DEV protocol all parent 1:0 prio 1 \
-    u32 match ip protocol 0 0x00 classid 1:11
+    $TC filter add dev $DEV protocol all parent 1:0 prio 1 u32 \
+    match ip protocol 0 0x00 classid 1:11
 
     ifconfig $DEV up
 
