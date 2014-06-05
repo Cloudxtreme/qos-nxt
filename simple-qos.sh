@@ -218,9 +218,6 @@ diffserv() {
     fc $interface 1:0 0x88 1:11 # AF41
     fc $interface 1:0 0x98 1:11 # AF43
 
-    $TC filter add dev $interface protocol all parent 1:0 prio 999 \
-    u32 match ip protocol 0 0x00 classid 1:12
-
 }
 
 egress() {
@@ -262,7 +259,6 @@ egress() {
     dc $IFACE 1:0 465 1:11
     dc $IFACE 1:0 993 1:11
     dc $IFACE 1:0 995 1:11
-    fc $IFACE 1:0 0x00 1:12 # BE
 
 }
 
@@ -275,7 +271,7 @@ ingress() {
     $TC qdisc add dev $IFACE handle ffff: ingress
 
     $TC qdisc del dev $DEV root 2> /dev/null
-    $TC qdisc add dev $DEV root handle 1: `get_stab_string_i` htb default 12
+    $TC qdisc add dev $DEV root handle 1: `get_stab_string_i` htb default 11
 
     $TC class add dev $DEV parent 1: classid 1:1 htb $LQ rate ${CEIL}kbit \
     ceil ${CEIL}kbit
@@ -285,9 +281,6 @@ ingress() {
 
     $TC qdisc add dev $DEV parent 1:11 handle 110: $QDISC limit $LIMIT \
     $ECN `get_quantum $QUANTUM` `get_flows $CEIL`
-
-    $TC filter add dev $DEV protocol all parent 1:0 prio 1 u32 \
-    match ip protocol 0 0x00 classid 1:11
     
     ifconfig $DEV up
 
